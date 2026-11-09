@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Feature Design"
+  short_description: "Create source-grounded ADRs and design docs"
+  default_prompt: "Use $document-feature-design to create a source-grounded layered ADR, RFC, or technical design for this feature as a local draft unless I specify another delivery endpoint."

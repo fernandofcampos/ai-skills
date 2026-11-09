@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "created_at": "<actual record creation time with timezone>",
+  "revision": 0,
+  "checkpoints": [],
+  "mode": "unassessed",
+  "selection_reason": "Awaiting source-grounded assessment",
+  "coverage": [
+    {
+      "id": "<stable repository ID>",
+      "snapshot": {
+        "repo_root": "<absolute repository root>",
+        "target_base": "<exact target base commit>",
+        "comparison_base": "<exact comparison base commit>",
+        "head": "<exact reviewed head commit>"
+      },
+      "record": {
+        "schema_version": 1,
+        "created_at": "<actual inventory creation time with timezone>",
+        "snapshot": {
+          "repo_root": "<same absolute repository root>",
+          "target_base": "<same exact target base commit>",
+          "comparison_base": "<same exact comparison base commit>",
+          "head": "<same exact reviewed head commit>"
+        },
+        "files": [
+          {
+            "path": "<actual changed path; repeat for the complete inventory>",
+            "old_path": null,
+            "change": "<actual Git change code, including rename score when relevant>",
+            "units": [],
+            "status": "unreviewed",
+            "evidence": [],
+            "notes": ""
+          }
+        ],
+        "integration": {"status": "unreviewed", "evidence": [], "notes": ""}
+      }
+    }
+  ],
+  "installed_skill_snapshot": [],
+  "lead": null,
+  "depth": {"level": "unassessed", "reason": ""},
+  "boundaries": [],
+  "investigations": [],
+  "truncations": [],
+  "limitations": [],
+  "environments": [],
+  "recording": {"method": "manual", "reason": "<actual helper limitation; no successful helper execution claimed>"},
+  "timing": {
+    "milestones": [
+      {
+        "name": "intake",
+        "at": null,
+        "recorded_at": "<actual time this observation was saved>",
+        "basis": "unknown",
+        "source": "<why intake is unmeasured; use observed/evidence with actual timestamps when available>"
+      }
+    ]
+  },
+  "events": []
+}
