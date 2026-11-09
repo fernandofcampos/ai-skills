@@ -14,8 +14,8 @@ Both complete skill directories are included, with their templates, references, 
 Clone this repository, then copy both folders into your Codex skill directory:
 
 ```sh
-git clone https://github.com/fernandofcampos/codex-skills.git
-cd codex-skills
+git clone https://github.com/fernandofcampos/ai-skills.git
+cd ai-skills
 skill_root="${CODEX_HOME:-$HOME/.codex}/skills"
 mkdir -p "$skill_root"
 cp -R review-large-pr document-feature-design "$skill_root/"
