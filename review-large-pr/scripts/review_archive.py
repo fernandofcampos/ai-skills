@@ -14,7 +14,7 @@ import re
 import shutil
 import sys
 import tempfile
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 from review_coverage import CoverageError
 
@@ -63,6 +63,39 @@ def evidence_references(data):
     elif isinstance(data, list):
         for value in data:
             yield from evidence_references(value)
+
+
+def review_json_records(raw, root, initial):
+    """Follow record identities, never infer roles from arbitrary JSON fixtures."""
+    records, pending = set(), list(initial)
+    while pending:
+        name = pending.pop()
+        relative_name(name)
+        if name in records:
+            continue
+        if name not in raw:
+            raise CoverageError(f'Include referenced JSON review record: {name}')
+        records.add(name)
+        data = json.loads(raw[name])
+        if not isinstance(data, dict):
+            continue
+        for ref in data.get('coverage', []) if isinstance(data.get('coverage'), list) else []:
+            if isinstance(ref, dict) and {'snapshot', 'path'} <= ref.keys():
+                pending.append(local_reference(ref['path'], PurePosixPath(name), root))
+        # Selected repair/promotion backups are known historical records too.
+        # Unselected history remains provenance, not an implicit file selection.
+        history = [row.get('previous_record') for row in data.get('evidence_repairs', [])]
+        previous = data.get('previous_record')
+        if isinstance(previous, dict):
+            history.append(previous.get('path'))
+        for value in history:
+            if isinstance(value, str):
+                target = relocated_path(value, PurePosixPath(name), root)
+                if target.is_relative_to(root):
+                    relative = target.relative_to(root).as_posix()
+                    if relative in raw:
+                        pending.append(relative)
+    return records
 
 
 def relocation_aliases(run):
@@ -145,10 +178,11 @@ def markdown_links(text, replace):
     return ''.join(output)
 
 
-def portable_content(raw, name, root, selected, canonical_run=None, aliases=None):
+def portable_content(raw, name, root, selected, canonical_run=None, aliases=None,
+                     *, rewrite_json=False, encode_paths=True):
     owner = PurePosixPath(name)
     suffix = owner.suffix.lower()
-    if suffix == '.json':
+    if rewrite_json:
         data = json.loads(raw)
         # Standalone checkpoint inputs use the selected canonical run's directory,
         # even when saved in requests/. Preserve that convention on relocation.
@@ -183,6 +217,10 @@ def portable_content(raw, name, root, selected, canonical_run=None, aliases=None
             if target not in selected:
                 raise CoverageError(f'Unselected Markdown evidence: {name} -> {target}')
             dest = os.path.relpath(target, str(owner.parent))
+            if encode_paths:
+                # Quote the path separately: #, ?, %, and : are filename data,
+                # not fragments, queries, escapes, or a URI scheme.
+                dest = quote(Path(dest).as_posix(), safe='/')
             if url.query:
                 dest += '?' + url.query
             if url.fragment:
@@ -192,14 +230,14 @@ def portable_content(raw, name, root, selected, canonical_run=None, aliases=None
     return raw
 
 
-def create(root, output, run, report, includes):
+def create(root, output, run, report, includes, json_records=()):
     root, output = Path(root).resolve(), Path(output).resolve()
     if output.exists() or output.is_relative_to(root):
         raise CoverageError('Archive destination must be new and outside the scratch root.')
     temporary_roots = {Path('/tmp').resolve(), Path(tempfile.gettempdir()).resolve()}
     if any(output.is_relative_to(p) for p in temporary_roots):
         raise CoverageError('Choose durable output outside system temporary storage.')
-    selected = set([run, report, *includes])
+    selected = set([run, report, *includes, *json_records])
     for name in selected:
         relative_name(name)
         if any(p in FORBIDDEN or p.startswith('.env.') for p in PurePosixPath(name).parts):
@@ -224,13 +262,17 @@ def create(root, output, run, report, includes):
         snapshots.append(item['snapshot'])
     aliases = relocation_aliases(run_data)
     validate_relocation_contents(run_data, root, raw, aliases)
-    portable = {name: portable_content(raw[name], name, root, selected, run, aliases) for name in sorted(selected)}
-    manifest = dict(schema_version=1, created_at=datetime.now(timezone.utc).isoformat(),
+    records = review_json_records(raw, root, [run, *json_records])
+    portable = {name: portable_content(raw[name], name, root, selected, run, aliases,
+                                      rewrite_json=name in records) for name in sorted(selected)}
+    manifest = dict(schema_version=2, created_at=datetime.now(timezone.utc).isoformat(),
                     source_root=str(root), report=report, run=run, snapshots=snapshots,
+                    json_records=sorted(records),
                     files=[dict(path=name, original_sha256=sha(raw[name]),
                                 portable_sha256=sha(portable[name])) for name in sorted(selected)],
                     limits=['Selected files only; inspect content for secrets before packaging.',
                             'Git source/installed resource paths remain external; snapshots are unchanged.',
+                            'Structured JSON references are checked only in declared review records; other JSON is preserved byte-for-byte.',
                             'Supported single-line inline links (including simple titles) and structured references checked; unsupported syntax and fragments need manual audit.'])
     # Exclusive destination: never overwrite another delivery; clean up only a
     # directory this call successfully created if writing/checking fails.
@@ -252,12 +294,12 @@ def create(root, output, run, report, includes):
 def check(output):
     output = Path(output).resolve()
     manifest = json.loads(safe_file(output, 'archive.json').read_bytes())
-    if not isinstance(manifest, dict) or manifest.get('schema_version') != 1:
-        raise CoverageError('Expected archive schema_version 1.')
+    if not isinstance(manifest, dict) or type(manifest.get('schema_version')) is not int or manifest['schema_version'] not in {1, 2}:
+        raise CoverageError('Expected archive schema_version 1 or 2.')
     rows = manifest.get('files')
     if not isinstance(rows, list) or not rows:
         raise CoverageError('Archive requires a nonempty file inventory.')
-    selected = set()
+    selected, portable = set(), {}
     for row in rows:
         name = row['path']
         relative_name(name)
@@ -268,17 +310,34 @@ def check(output):
             content = safe_file(output, kind + '/' + name).read_bytes()
             if sha(content) != row[key]:
                 raise CoverageError(f'Archive integrity mismatch: {kind}/{name}')
+            if kind == 'files':
+                portable[name] = content
     if manifest.get('report') not in selected or manifest.get('run') not in selected:
         raise CoverageError('Archive report/run must be selected.')
     # Check relocated references without needing the old scratch or Git checkout.
     root = output / 'files'
+    legacy = manifest['schema_version'] == 1
+    if legacy:
+        # Existing archives used extension-based JSON rewriting and unescaped
+        # Markdown destinations. Verify them under that original contract.
+        records = {name for name in selected if PurePosixPath(name).suffix.lower() == '.json'}
+    else:
+        declared = manifest.get('json_records')
+        if (not isinstance(declared, list) or any(not isinstance(name, str) for name in declared)
+                or len(set(declared)) != len(declared) or not set(declared) <= selected
+                or manifest['run'] not in declared):
+            raise CoverageError('Archive requires selected, unique JSON review records including its run.')
+        records = review_json_records(portable, root, declared)
+        if records != set(declared):
+            raise CoverageError('Archive JSON record inventory omits referenced records.')
     for name in selected:
-        raw = safe_file(root, name).read_bytes()
-        if PurePosixPath(name).suffix.lower() == '.json':
+        raw = portable[name]
+        if name in records:
             for ref in evidence_references(json.loads(raw)):
                 if Path(ref['path']).is_absolute():
                     raise CoverageError('Archived evidence reference must be portable.')
-        if portable_content(raw, name, root, selected, manifest['run']) != raw:
+        if portable_content(raw, name, root, selected, manifest['run'],
+                            rewrite_json=name in records, encode_paths=not legacy) != raw:
             raise CoverageError(f'Archive contains a non-portable or non-normalized evidence reference: {name}')
     run = json.loads(safe_file(root, manifest['run']).read_bytes())
     snapshots = []
@@ -310,12 +369,14 @@ def main(argv=None):
     build.add_argument('--run', default='run.json')
     build.add_argument('--report', default='review-record.md')
     build.add_argument('--include', action='append', default=[])
+    build.add_argument('--json-record', action='append', default=[],
+                       help='Include a JSON review record and rewrite its evidence pointers; repeat as needed. Other JSON includes stay byte-identical.')
     inspect = sub.add_parser('check')
     inspect.add_argument('archive')
     args = parser.parse_args(argv)
     try:
         if args.command == 'create':
-            create(args.root, args.output, args.run, args.report, args.include)
+            create(args.root, args.output, args.run, args.report, args.include, args.json_record)
         else:
             check(args.archive)
     except (CoverageError, OSError, ValueError, TypeError, KeyError, AttributeError) as exc:

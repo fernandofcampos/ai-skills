@@ -5,9 +5,12 @@ import io
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from urllib.parse import unquote, urlsplit
 
 import review_archive as archive
 from review_coverage import CoverageError
@@ -85,7 +88,7 @@ class ArchiveCases(unittest.TestCase):
                            evidence=[dict(path='batches/trace.md', locator='Admission', claim='Connected path traced')])])])
         raw = json.dumps(request).encode()
         (self.root / 'requests/pass.json').write_bytes(raw)
-        self.create(includes=[*self.includes, 'requests/pass.json'])
+        self.create(json_records=['requests/pass.json'])
         moved = self.home / 'relocated'; self.output.rename(moved)
         shutil.rmtree(self.root)
         with redirect_stdout(io.StringIO()):
@@ -93,6 +96,138 @@ class ArchiveCases(unittest.TestCase):
         self.assertEqual((moved / 'originals/requests/pass.json').read_bytes(), raw)
         portable = json.loads((moved / 'files/requests/pass.json').read_bytes())
         self.assertEqual(portable['coverage'][0]['files'][0]['evidence'][0]['path'], 'batches/trace.md')
+
+    def test_json_fixtures_remain_byte_identical_after_relocation(self):
+        fixtures = {
+            'compact.json': b'{"message":"caf\xc3\xa9","n":1e0}\r\n',
+            'malformed.json': b'{"unfinished":',
+            'invalid-utf8.json': b'\xff',
+            'evidence-shape.json': b'{"path":"missing.txt","locator":"input","claim":"fixture"}',
+            'checkpoint-shape.json': b'{"id":"fixture","expected_revision":0,"actor":"test","note":"input"}',
+            'run-shape.json': b'{"schema_version":1,"coverage":[{"snapshot":{},"path":"missing.json"}]}',
+        }
+        for name, content in fixtures.items():
+            (self.root / name).write_bytes(content)
+        result = self.create(includes=[*self.includes, *fixtures])
+        moved = self.home / 'moved'; self.output.rename(moved)
+        shutil.rmtree(self.root)
+        with redirect_stdout(io.StringIO()):
+            archive.check(moved)
+        for name, content in fixtures.items():
+            with self.subTest(name=name):
+                self.assertEqual((moved / 'originals' / name).read_bytes(), content)
+                self.assertEqual((moved / 'files' / name).read_bytes(), content)
+                row = next(r for r in result['files'] if r['path'] == name)
+                self.assertEqual(row['original_sha256'], row['portable_sha256'])
+
+    def test_byte_sensitive_probe_runs_in_portable_archive(self):
+        (self.root / 'fixture.json').write_bytes(b'{"a":1}')
+        (self.root / 'fixture_probe.py').write_text(
+            'from pathlib import Path\n'
+            'assert Path(__file__).with_name("fixture.json").read_bytes() == b\'{"a":1}\'\n')
+        self.create(includes=[*self.includes, 'fixture.json', 'fixture_probe.py'])
+        shutil.rmtree(self.root)
+        for kind in ('originals', 'files'):
+            result = subprocess.run([sys.executable, str(self.output / kind / 'fixture_probe.py')],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_explicit_json_record_cli_rewrites_evidence_and_preserves_original(self):
+        raw = json.dumps(dict(path=str(self.root / 'batches/trace.md'),
+                              locator='Admission', claim='Connected path traced')).encode()
+        (self.root / 'handoff.json').write_bytes(raw)
+        with redirect_stdout(io.StringIO()):
+            result = archive.main(['create', '--root', str(self.root), '--output', str(self.output),
+                '--json-record', 'handoff.json',
+                *[arg for name in self.includes for arg in ['--include', name]]])
+        self.assertEqual(result, 0)
+        self.assertEqual((self.output / 'originals/handoff.json').read_bytes(), raw)
+        portable = json.loads((self.output / 'files/handoff.json').read_bytes())
+        self.assertEqual(portable['path'], 'batches/trace.md')
+        shutil.rmtree(self.root)
+        with redirect_stdout(io.StringIO()):
+            archive.check(self.output)
+
+    def test_declared_json_record_still_rejects_invalid_json_and_missing_evidence(self):
+        for raw in [b'{', b'{"path":"absent.txt","locator":"test","claim":"checked"}']:
+            (self.root / 'handoff.json').write_bytes(raw)
+            with self.subTest(raw=raw), self.assertRaises((ValueError, CoverageError)):
+                self.create(json_records=['handoff.json'])
+            self.assertFalse(self.output.exists())
+
+    def test_historical_run_discovers_its_referenced_coverage(self):
+        (self.root / 'older-coverage.json').write_text(json.dumps(self.coverage))
+        older = dict(self.run, coverage=[dict(path='older-coverage.json', snapshot=self.coverage['snapshot'])])
+        (self.root / 'prior.json').write_text(json.dumps(older))
+        result = self.create(includes=[*self.includes, 'older-coverage.json'], json_records=['prior.json'])
+        self.assertIn('older-coverage.json', result['json_records'])
+        portable = json.loads((self.output / 'files/older-coverage.json').read_bytes())
+        self.assertEqual(portable['files'][0]['evidence'][0]['path'], 'batches/trace.md')
+        shutil.rmtree(self.root)
+        with redirect_stdout(io.StringIO()):
+            archive.check(self.output)
+
+    def test_reserved_characters_remain_filename_data_in_markdown_links(self):
+        filenames = {
+            'trace#1.txt': 'trace%231.txt',
+            'trace%20.txt': 'trace%2520.txt',
+            'trace?1.txt': 'trace%3F1.txt',
+            'trace:1.txt': './trace:1.txt',
+            'trace caf\u00e9 (1).txt': 'trace caf\u00e9 (1).txt',
+        }
+        links = []
+        for name, uri in filenames.items():
+            (self.root / name).write_text('evidence')
+            links.append(f'[Evidence](<{uri}?view=full#Result> "Saved trace")\n')
+        (self.root / 'review-record.md').write_text(''.join(links))
+        self.create(includes=[*self.includes, *filenames])
+        moved = self.home / 'moved'; self.output.rename(moved)
+        shutil.rmtree(self.root)
+        with redirect_stdout(io.StringIO()):
+            archive.check(moved)
+        text = (moved / 'files/review-record.md').read_text()
+        self.assertEqual(len(text.splitlines()), len(filenames))
+        for name, line in zip(filenames, text.splitlines()):
+            with self.subTest(name=name):
+                target = line.split('(<', 1)[1].split('>', 1)[0]
+                url = urlsplit(target)
+                self.assertEqual(url.scheme, '')
+                self.assertEqual(url.netloc, '')
+                self.assertEqual(unquote(url.path), name)
+                self.assertEqual(url.query, 'view=full')
+                self.assertEqual(url.fragment, 'Result')
+                self.assertTrue(line.endswith('> "Saved trace")'))
+                self.assertEqual((moved / 'files' / unquote(url.path)).read_text(), 'evidence')
+
+    def test_legacy_archive_with_unescaped_space_still_validates(self):
+        (self.root / 'extra note.txt').write_text('evidence')
+        (self.root / 'review-record.md').write_text('[Evidence](<extra note.txt>)\n')
+        self.create(includes=[*self.includes, 'extra note.txt'])
+        manifest_path = self.output / 'archive.json'
+        manifest = json.loads(manifest_path.read_bytes())
+        manifest['schema_version'] = 1
+        manifest.pop('json_records', None)
+        legacy_text = b'[Evidence](<extra note.txt>)\n'
+        (self.output / 'files/review-record.md').write_bytes(legacy_text)
+        for row in manifest['files']:
+            if row['path'] == 'review-record.md':
+                row['portable_sha256'] = archive.sha(legacy_text)
+        manifest_path.write_text(json.dumps(manifest))
+        moved = self.home / 'moved'; self.output.rename(moved)
+        shutil.rmtree(self.root)
+        with redirect_stdout(io.StringIO()):
+            archive.check(moved)
+
+    def test_record_inventory_cannot_omit_required_records_or_add_unselected_files(self):
+        self.create()
+        path = self.output / 'archive.json'
+        original = json.loads(path.read_bytes())
+        for records in [None, [], ['run.json'], ['run.json', 'coverage.json', 'absent.json'],
+                        ['run.json', 'coverage.json', 'run.json']]:
+            changed = dict(original, json_records=records)
+            path.write_text(json.dumps(changed))
+            with self.subTest(records=records), self.assertRaises(CoverageError):
+                archive.check(self.output)
 
     def test_tampered_original_or_portable_fails(self):
         self.create()
