@@ -1,11 +1,16 @@
 # Canonical checkpoints and fallback
 
 Use one schema-2 `run.json` as the current source of coverage, investigations,
-environment decisions and timing. The narrative explains the evidence and links
+environment decisions and optional timing. The narrative explains the evidence and links
 this record. Do not maintain a second independently updated file-status table.
 Only the lead commits assessments; workers write distinct evidence artifacts.
 
 ## Start and attach scope
+
+Prefer [start/assess/record/finish](quickstart.md) for routine use. The low-level
+`begin` path below also starts optional timing; use it for custom/multi-repository
+setup or when lifecycle diagnostics are desired. Required review evidence is the
+same with either entrypoint.
 
 At the first observed intake, create the durable parent folder, then:
 
@@ -21,7 +26,7 @@ record the earlier endpoint as unknown; do not backdate a later observation.
 Here `<run>` is the evidence directory. If packaging is planned, choose a sibling
 archive destination under the same task-owned parent; it cannot be inside `<run>`.
 
-An established Astra/xhigh lead working directly uses `--role lead`; this records
+The lead working directly uses `--role lead`; this records
 its observed start and one review phase. Neither role flag configures a model.
 If earlier intake is known, use `--intake-at <ISO-time> --intake-source <evidence>`.
 Use `--intake-unknown --intake-source <reason>` if recovering an unmeasured start.
@@ -44,7 +49,7 @@ embed immutable snapshots; the seed inventory is historical from then on.
 An import may include `files` and/or `integration` dispositions from an already
 verified pass in the same entry. They are validated and saved atomically with the
 import; an existing repository ID still cannot be reimported or relabeled.
-Record lead configuration, `mode: full`, investigation depth and the environment
+Record lead identity, `mode: full`, investigation depth and the environment
 decision as established.
 The complete assessment/investigation fields are in [run-record.md](run-record.md).
 
@@ -63,8 +68,8 @@ The complete assessment/investigation fields are in [run-record.md](run-record.m
 }
 ```
 
-This is a partial example, not a completion claim. Add actual `lead` evidence and
-lifecycle observations; never copy invented configuration. Paths in checkpoint
+This is a partial example, not a completion claim. Add the actual `lead` identity. Configuration and lifecycle observations are
+optional; never copy invented settings or timestamps. Paths in checkpoint
 fields resolve from the canonical record's directory, not the input file.
 
 ```bash
@@ -107,7 +112,8 @@ than forcing them through. Invalid evidence or a failed replacement changes none
 of coverage, investigations or timing. This is interruption resilience, not an
 authorization to retry an action rejected by platform policy.
 
-At handoff, explicitly close completed phases, record `lead_complete`, and run:
+At handoff, close observed phases and record `lead_complete` if collecting timing.
+For required review evidence, run:
 
 ```bash
 python <skill-dir>/scripts/review_run.py check <run>/run.json --require-complete
@@ -116,8 +122,8 @@ python <skill-dir>/scripts/review_run.py check <run>/run.json --require-complete
 Or use `checkpoint --require-complete` to validate the proposed final checkpoint
 before saving it. A partial review can still record its actual completion time;
 strict review checks remain incomplete. Do not defer useful delivery to manufacture
-missing timing. Unknown endpoints must be explicitly recorded with a reason.
-The coordinator records `delivery_ready` after consolidation; actual delivery is
+missing timing. In a diagnostics audit, unknown endpoints need an explicit reason.
+When collecting timing, the coordinator records `delivery_ready` after consolidation; actual delivery is
 recorded later only if observable, in a supplement if the archive was already sent.
 
 For a focused follow-up, combine related observations in the verified passes and

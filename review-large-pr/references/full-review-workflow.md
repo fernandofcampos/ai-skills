@@ -1,6 +1,6 @@
 # Complete review workflow
 
-Use this workflow for every invocation of `review-large-pr`, alongside the snapshot, requirements, validation, coverage and delivery rules in [SKILL.md](../SKILL.md). Keep the existing Astra/xhigh lead and verified evidence. Assess investigation depth from the change; delegation depends on independent work and capacity. Reuse sufficient architectural context.
+Use this workflow for every invocation of `review-large-pr`, alongside the snapshot, requirements, validation, coverage and delivery rules in [SKILL.md](../SKILL.md). Keep the existing lead and verified evidence. Assess investigation depth from the change; delegation depends on independent work and capacity. Reuse sufficient architectural context.
 
 ## Prepare architectural context automatically
 
@@ -41,7 +41,7 @@ Use the [behavioral investigation template](../assets/behavioral-investigation-t
 
 Keep the source review read-only. Give reviewers separate scratch outputs and isolated test execution where shared writes would conflict. The lead alone updates the consolidated review record and coverage inventory; reviewer notes are inputs to reconcile. While reviewers work, the lead investigates the primary flow and cross-unit scenarios, resolves dependencies, and checks unassigned areas. Wait for relevant handoffs before claiming completion; if a reviewer fails or returns partial work, the lead completes or reassigns the gap, or reports it explicitly as unfinished.
 
-The lead owns integration, complete-inventory reconciliation, and the final findings. Check handoff revisions and inspect their evidence, independently verify candidate findings and resolve disagreements, then deduplicate by root cause and impact. Directly investigate consequential interactions even when every unit reports no findings. Do not replace this work with a vote or repeat all unit reviews merely to obtain agreement. Carry forward results from a different snapshot only through the [revision-reassessment process](../SKILL.md#resume-after-changes-and-deliver-a-verdict).
+The lead owns integration, complete-inventory reconciliation, and the final findings. Check handoff revisions and inspect their evidence, independently verify candidate findings and resolve disagreements, then deduplicate by root cause and impact. Directly investigate consequential interactions even when every unit reports no findings. Do not replace this work with a vote or repeat all unit reviews merely to obtain agreement. Carry forward results from a different snapshot only through the [revision-reassessment process](review-completion.md#resume-after-changes-and-deliver-a-verdict).
 
 ## Review units and their interactions
 

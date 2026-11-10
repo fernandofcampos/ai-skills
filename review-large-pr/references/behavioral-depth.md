@@ -1,6 +1,6 @@
 # Behavioral depth for consequential or very large changes
 
-Read after selecting `deep` investigation. Keep Astra/xhigh as the single lead
+Read after selecting `deep` investigation. Keep the designated lead
 and focused reviewers under the shared model policy. Apply these requirements
 within the review workflow, retaining valid evidence on follow-up passes.
 

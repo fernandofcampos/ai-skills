@@ -24,11 +24,11 @@ class RoutingCases(unittest.TestCase):
         self.assertEqual(self.routing(model='gpt-6-astra', effort='xhigh',
                                      configuration_source='current task config'), 'reuse_current')
 
-    def test_model_without_effort_or_evidence_is_not_confirmation(self):
+    def test_unknown_or_different_settings_reuse_current_lead(self):
         for values in [dict(model='gpt-6-astra'), dict(model='gpt-6-astra', effort='xhigh'),
                        dict(model='gpt-6-astra', effort='xhigh', configuration_source=42),
                        dict(model='gpt-6-astra', effort='high', configuration_source='current config')]:
-            self.assertEqual(self.routing(**values), 'delegate_once')
+            self.assertEqual(self.routing(**values), 'reuse_current')
 
     def test_existing_lead_and_assigned_workers_never_create_second_lead(self):
         self.assertEqual(self.routing(existing_lead='lead'), 'reuse_existing')
@@ -36,11 +36,11 @@ class RoutingCases(unittest.TestCase):
             self.assertEqual(review_run.route(dict(agent='worker', role=role, existing_lead='lead',
                                                    can_delegate=True))['action'], 'retain_assignment')
         self.assertEqual(review_run.route(dict(agent='lead', role='lead', can_delegate=True))['action'],
-                         'retain_lead_report_configuration_gap')
+                         'reuse_current')
 
-    def test_unavailable_delegation_reports_configuration_gap(self):
+    def test_unavailable_delegation_reuses_current_lead(self):
         self.assertEqual(review_run.route(dict(agent='root', can_delegate=False))['action'],
-                         'lead_direct_report_configuration_gap')
+                         'reuse_current')
 
     def test_explicit_user_override_is_recorded_without_changing_default(self):
         self.assertEqual(self.routing(model='gpt-6-astra', effort='high', configuration_source='runtime config',
@@ -228,10 +228,11 @@ class RunCases(unittest.TestCase):
         for change in [dict(effort='high'), dict(model='gpt-6.1-sol'), dict(evidence_kind='unknown'), dict(selection='unavailable')]:
             changed = json.loads(json.dumps(data)); changed['lead'].update(change)
             self.save(changed)
-            result = self.check(ok=False)
-            self.assertIn('leadership is not supported', result.stderr)
+            result = self.check()
+            strict = self.cli('check', str(self.record), '--require-complete', '--require-diagnostics', ok=False)
+            self.assertIn('Preferred lead settings', strict.stderr)
             self.assertIn('Recorded review/record obligations: resolved.', result.stdout)
-            self.assertIn('Execution-policy conformance: limited:', result.stdout)
+            self.assertIn('Model observations (optional): limited:', result.stdout)
 
     def test_explicit_user_choice_can_override_policy_but_not_configuration_evidence(self):
         data = self.finish()
@@ -240,7 +241,8 @@ class RunCases(unittest.TestCase):
         self.save(data)
         self.assertIn('Explicit user model override', self.check().stdout)
         data['lead']['evidence_kind'] = 'unknown'; self.save(data)
-        self.check(ok=False)
+        self.check()
+        self.cli('check', str(self.record), '--require-diagnostics', ok=False)
 
     def test_missing_artifact_or_malformed_investigation_fails(self):
         data = self.finish(deep=True)
@@ -299,7 +301,10 @@ class RunCases(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             pending, warnings = review_run.inspect_run(data, self.record, at=future)
         self.assertTrue(any('observation due' in w for w in warnings))
-        self.assertTrue(any('active phase' in p for p in pending))
+        self.assertFalse(any('active phase' in p for p in pending))
+        with self.assertRaisesRegex(CoverageError, 'active phase'):
+            with redirect_stdout(io.StringIO()):
+                review_run.inspect_run(data, self.record, at=future, require_diagnostics=True)
         self.assertEqual(self.record.read_bytes(), before)
 
     def test_init_refuses_overwrite(self):
