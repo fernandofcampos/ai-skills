@@ -37,8 +37,25 @@ It preserves original bytes in `originals/`, rewrites local evidence pointers in
 `files/`, and records both SHA-256 values and source snapshots in `archive.json`.
 Link the final response to `files/review-record.md`.
 
+JSON evidence selected with `--include` stays byte-for-byte unchanged, including
+malformed inputs and byte-sensitive fixtures. Only identified review records have
+structured paths rewritten: the canonical `--run`, its referenced legacy coverage,
+and selected repair/promotion backups are identified automatically. Use repeatable
+`--json-record <relative-path>` for other JSON review records, such as checkpoint
+inputs, structured handoffs or an unreferenced earlier manifest; this also selects
+the file. Coverage files referenced by those records must be included and are
+identified automatically. Do not use `--json-record` for test fixtures or other
+opaque payloads, even when their fields resemble review records. Declared records
+must parse as JSON and all their evidence targets must be selected.
+
+New archives use schema version 2 and retain this record inventory in
+`json_records`, so checking after relocation uses the same interpretation. The
+checker still accepts existing schema-1 archives under their original JSON and
+Markdown normalization rules; it does not rewrite previously delivered archives.
+
 Canonical receipts already preserve checkpoint changes, so raw checkpoint input
-files are optional. When selected, their evidence paths resolve from the canonical
+files are optional. Select them with `--json-record requests/pass.json` when needed.
+Their evidence paths resolve from the canonical
 `--run` directory, even if the inputs live in `requests/`; portable copies retain
 that convention. Include only inputs for that selected run. Package another run's
 inputs with its own canonical record rather than silently mixing reference bases.
@@ -65,7 +82,9 @@ including optional double-quoted, single-quoted or parenthesized titles. Local
 `sandbox:/absolute/path` evidence links under the selected root become portable
 relative links; stage out-of-root sandbox evidence first. These are local paths,
 not URLs to fetch. The checker preserves titles, queries and fragments; it checks
-file targets, not fragment validity. Reference-style/HTML links, multiline links,
+file targets, not fragment validity. Rewritten URL paths percent-encode filename
+characters such as `#`, `?`, `%` and `:`, keeping them separate from query and
+fragment delimiters. Reference-style/HTML links, multiline links,
 nested labels, escaped title delimiters, and bare destinations containing
 parentheses require manual audit; use an angle-bracket destination for a path
 containing spaces or parentheses.
