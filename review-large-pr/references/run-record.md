@@ -1,4 +1,4 @@
-# Execution provenance, depth and progress
+# Review records and optional diagnostics
 
 Use `scripts/review_run.py` for local records or preserve equivalent fields when
 the comparison/tooling is unsupported. It uses Python's standard library and the
@@ -29,27 +29,24 @@ replace it with observed configuration, never copy it as execution evidence:
 python <skill-dir>/scripts/review_run.py route --input <scratch>/routing-input.json
 ```
 
-Known Astra/xhigh returns `reuse_current`; an `existing_lead` returns reuse of that
-identity; assigned reviewers/authors retain their assignment. An assigned lead
-with unknown settings retains its role and reports the gap. Only an unassigned
-agent without usable configuration/existing lead routes to `delegate_once` when
-supported. Otherwise report the configuration limitation and continue permitted
-work. The command recommends routing from supplied data; it neither detects the
-current model nor proves the requested backend ran.
+The helper always reuses the current or designated lead; assigned reviewers/authors
+retain their assignment. Unknown or different settings are optional diagnostic
+limits, not a reason to create another lead. Use `--repo <project-root>` to load
+`.ai-skills.json`, or `--policy <file>` to choose explicitly. The result reports
+preferences and whether supplied evidence confirms them; it does not configure a
+model or attest backend execution.
 
-The default remains Astra/xhigh. An explicit user model choice has precedence
-under the shared policy: when one exists, include `user_override` with
-`authority: "explicit_user"`, the requested `model`, `effort` and a precise `source`
-for that instruction in routing input and the manifest's `lead` object. Never
-create an override from a runtime limitation or an agent preference. It does not
-replace configuration/invocation evidence for the chosen settings.
+An explicit user choice takes precedence over project preferences and defaults.
+Retain `user_override` with `authority: explicit_user`, `model`, `effort`, and
+`source` when recording that choice. It does not establish runtime confirmation.
 
 ## Initialize and record
 
-For new reviews follow [canonical checkpoints](checkpoint-records.md): `begin`
-captures intake before scope discovery, then `checkpoint` embeds inventories and
-commits coverage, investigations and timing together in schema 2. Its JSON template
-also defines the manual fallback. Do not directly edit current helper records or
+For new reviews prefer the [quickstart](quickstart.md): `start` creates the run and
+inventory, then `assess`, `record` and `checkpoint` save verified work. For custom
+setup with timing, [canonical checkpoints](checkpoint-records.md) describe `begin`
+and inventory imports. The JSON template also defines the manual fallback.
+Do not directly edit current helper records or
 update imported coverage seeds. Schema-1 `init`, `event`, `milestone` and standalone
 coverage commands remain supported for old runs; `promote` preserves them when
 moving to the canonical format.
@@ -57,17 +54,24 @@ moving to the canonical format.
 Fingerprints identify installed resources, not proof every reference was read.
 Record conditional resources actually used. Preserve old hashes on drift and note
 newly used versions; neither promotion nor a later run relabels earlier evidence.
-New records can initially have unassessed mode/depth and no inventory; strict checks
-reject this until the actual assessment is attached.
+Low-level begin records may initially have unassessed mode/depth and no inventory;
+completion checks reject this until the actual assessment is attached. Prefer the
+[quickstart](quickstart.md) for automatic initialization and routine evidence updates.
 
 Assessment and investigation fields (submit through checkpoint):
 
-- `lead`: `id`, `selection` (`current`, `existing`, `delegated`, `unavailable`),
-  `model`, `effort`, `configuration_source`, `evidence_kind` (`runtime_config`,
-  `invocation`, `unknown`). Describe requested versus confirmed settings honestly.
+- `mode`: `full` once the review is assessed. `unassessed` is the bootstrap state;
+  `full` identifies the workflow and does not claim complete coverage.
+- `selection_reason`: concrete scope, interactions and uncertainty being reviewed.
+- `lead`: required accountable `id`; optional `selection` (`current`, `existing`,
+  `delegated`, `unavailable`), `model`, `effort`, `configuration_source` and
+  `evidence_kind` (`runtime_config`, `invocation`, `unknown`). Describe requested
+  versus confirmed settings honestly. A minimal lead is `{ "id": "lead" }`.
+- `model_policy`: optional captured project preferences, source and hash. Start
+  saves these automatically; they are provenance, not runtime execution evidence.
 - `depth`: `level` (`standard` or `deep`) and behavioral `reason`. Deep requires
-  full mode. A light record may use standard depth, no separate boundary ledger
-  and one timed review phase; its coverage/integration evidence is still required.
+  a primary investigation and challenge for each critical boundary; both depths
+  require precise coverage and integration evidence.
 - `boundaries`: objects with stable `id`, actual `paths` (including unchanged
   consumers) and the critical `contract`. The lead verifies this inventory for
   omissions; a helper cannot infer all important boundaries from filenames.
@@ -80,8 +84,14 @@ Assessment and investigation fields (submit through checkpoint):
   follow-up evidence; a prose string cannot replace the array.
 - `limitations`: concise scope, environment, independence and runtime limits.
 - `timing.milestones`: lifecycle observations made by the coordinator/lead, each
-  with `name`, `at`, `recorded_at`, `basis` and `source`. Schema 2 requires intake/lead-start/lead-complete entries at completion,
-  permitting explicitly unknown times; older records retain timing warnings.
+  with `name`, `at`, `recorded_at`, `basis` and `source`. These are optional for
+  review completion. An explicit diagnostics audit requires intake/lead-start/lead-complete
+  entries, permitting explicitly unknown times; never backdate an observation.
+
+The helpers continue to accept historical `light` records for compatibility.
+New reviews use `full`; the skill no longer selects a light workflow. Preserve
+historical records and reassess their evidence against the current workflow when
+continuing earlier work.
 
 Illustrative resolved investigation (replace it with actual evidence):
 
@@ -108,13 +118,16 @@ A fresh reviewer must differ from the primary reviewer for that boundary; record
 prior exposure and never conceal safety constraints. A separate lead pass must
 name the limitation preventing fresh review and is not described as independent.
 
-## Timing and liveness
+## Optional timing and liveness
+
+Skip this section unless diagnostics are requested or useful. Missing observations
+do not change substantive completion; supplied timestamps must remain consistent.
 
 Use a small set of meaningful phases: context, environment, behavioral batches,
 integration/challenges and consolidation. Phases may overlap; report wall time
 separately from their intervals. Do not infer monetary cost or efficiency from
-raw token totals or sum overlapping durations. A single phase is enough for light
-work. Event states are `start`, `progress`, `waiting`, `blocked`, `complete`, `failed`.
+raw token totals or sum overlapping durations. A single phase can be sufficient
+for a focused follow-up. Event states are `start`, `progress`, `waiting`, `blocked`, `complete`, `failed`.
 Use a new phase ID for a retry, keeping the failed attempt. Notes identify the
 latest saved evidence, known process/agent state, remaining question and next step.
 
@@ -172,24 +185,21 @@ the host's communication rules, without a stream of unchanged status messages.
 python <skill-dir>/scripts/review_run.py check <scratch>/run.json --require-complete
 ```
 
-Strict run checks require complete embedded (or legacy referenced) coverage, recorded Astra/xhigh
-configuration/invocation evidence (or an evidenced explicit user override), assessed
-depth, closed phases, no unread truncations and resolved lead-verified investigations. Deep requires a primary
-and challenge for every listed boundary. Open defects are allowed; unresolved
-required hypotheses are not. Structural success cannot establish sufficient
-depth, independent reasoning, remote freshness or absence of omitted boundaries.
-Review the evidence audit warnings and semantic completion gate separately.
+`--require-complete` requires complete coverage, an accountable lead, assessed depth,
+a validation-environment decision, no unread truncations, and resolved lead-verified
+investigations. Deep requires a primary and challenge for every listed critical
+boundary. Open defects are allowed; unresolved required hypotheses are not.
 
-The checker prints review/record obligations separately from execution-policy
-conformance; `--require-complete` still requires both. Report the substantive
-verdict from the actual investigation even if policy evidence is unavailable,
-with that limitation explicit. Record/timing failures are distinct from missing
-source investigation. Neither structural status certifies semantic completeness.
-Do not rerun a finished review just to obtain different model evidence or infer
-backend settings from an invocation request.
+Model metadata, phase timing and lifecycle endpoints are optional. Add
+`--require-diagnostics` to audit them explicitly, alone or with `--require-complete`.
+Missing diagnostics are reported separately and cannot invalidate substantive
+review completion. Malformed supplied observations remain errors. Structural success
+cannot establish sufficient depth, independent reasoning, remote freshness or
+absence of omitted boundaries. Review evidence warnings and the semantic completion
+gate separately; do not rerun finished investigation for different model evidence.
 
-At unchanged revisions, mode escalation retains the same manifest/checkpoints;
-preserve the earlier narrative and record the transition and reopened obligations.
+At unchanged revisions, newly discovered risks retain the same in-progress
+manifest/checkpoints; preserve the earlier narrative and record reopened obligations.
 At changed source revisions, preserve the old run, initialize new coverage/run
 records and link explicit reassessment before carrying evidence forward. Do not
 edit pinned identities to make stale work pass. Failed optional experiments may

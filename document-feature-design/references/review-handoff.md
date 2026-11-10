@@ -21,7 +21,7 @@ its link. Each changed path still needs precise evidence in the canonical invent
 Independent verification means testing claims against source, not rewriting them.
 
 A small context gap can be resolved with a provisional paragraph in the review
-record in either mode: state the bounded question, observed path/ownership,
+record: state the bounded question, observed path/ownership,
 source evidence, assumption and remaining uncertainty. Label it descriptive and
 provisional, never an accepted design decision. Use the companion for a material
 architectural gap that needs durable explanation or an explicit documentation

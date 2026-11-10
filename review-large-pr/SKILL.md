@@ -1,117 +1,101 @@
 ---
 name: review-large-pr
-description: Review pull requests of any size with automatic lightweight or complete review based on risk, coupling and uncertainty. Supports first-pass and resumed code reviews with source-grounded findings and revision-specific coverage; not standalone design authoring or implementation.
+description: Review large or complex pull requests with whole-change reasoning, integration checks, revision-specific coverage, and durable evidence. Use for substantial interacting changes, explicit deep reviews, and resumed reviews that need traceable coverage; not routine small-PR review, standalone design authoring, or implementation.
 ---
 
 # Review Large PR
 
-Keep the cohesive PR as the delivery unit while making its review bounded, resumable, and grounded in source evidence. Select `light` or `full` mode from the required reasoning and interactions, not an arbitrary line or file threshold. Both modes retain the same correctness and coverage standard. Do not require a stack of smaller PRs or rewrite commits to perform a review.
+Review the cohesive change as one delivery unit. Keep the work bounded and resumable,
+and ground findings in reachable behavior at exact source revisions. Do not require
+a stack of smaller PRs or rewritten commits. Complexity comes from interactions and
+uncertainty; an explicit deep review can concern a compact consequential change.
 
-Start a canonical record with `review_run.py begin` at the first observed intake, before discovery/delegation; pass its path to the lead. Use the [checkpoint workflow](references/checkpoint-records.md) to attach exact inventories and save each verified pass atomically, including coverage, investigations and phase/lifecycle observations. New records embed coverage in `run.json`; imported inventory files are preserved seeds, not additional current records. Capture installed skill/template/helper fingerprints, actual lead configuration and conditional resources used. Preserve prior attempts and unknown earlier time. A light review may use one phase. Choose a durable task-owned location outside tracked source; manual fallback retains the same schema and explicit limitations.
+## Start with one lead and one record
 
-## Establish one lead and model policy
+Reuse the current or already designated lead. Read the [shared model policy](../document-feature-design/references/model-policy.md)
+once: project preferences and explicit user choices override defaults. Missing model
+metadata does not require a new lead or prevent a complete review. Assigned workers
+retain their role and never start another lead.
 
-Apply the [shared model policy](../document-feature-design/references/model-policy.md) before spawning. The designated review lead uses Astra/xhigh and owns context assessment, integration, coverage and the consolidated verdict. Reuse the current agent when current-task configuration establishes Astra/xhigh, or reuse the existing designated lead. Only route to an explicitly configured lead when reuse cannot be established; record the configuration evidence or its absence. Assigned reviewers/authors never start another lead. The [run-record helper](references/run-record.md) can check this routing decision from supplied configuration; it does not discover or switch models. Mode selection never lowers the lead's model or effort.
+Infer the repository, PR, requested scope and report destination. Read applicable
+repository guidance and the [source and validation rules](references/review-foundations.md).
+Review is read-only unless the user also authorizes fixes or publication; scratch
+evidence is allowed. Preserve dirty source and read the recorded revisions.
 
-Use the [supported paired installation](../document-feature-design/references/paired-installation.md) so the shared policy and companion resolve from this skill directory.
+Use the [quickstart](references/quickstart.md) to create a task-owned evidence folder
+outside the checkout with one command:
 
-## Establish scope and a reproducible snapshot
+```bash
+python <skill-dir>/scripts/review_run.py start --repo <checkout> --base <target-base> --head <head> --output <review-folder>
+```
 
-Infer the PR, repository, requested scope, and local report destination from context. Inspect applicable repository guidance. Default to read-only investigation and a local review record; creating scratch evidence is allowed. Fixing source, posting comments or a review, resolving threads, merging, and deploying each require authority from the user's request. Reuse existing authorization without asking again; review alone does not provide it.
+This pins the comparison, creates an unreviewed inventory, captures project model
+preferences and writes a report template. It does not fetch PR metadata, assess
+depth or claim coverage. Refresh actual remote revisions separately when available.
+For multiple repositories or unsupported comparisons, use the
+[checkpoint workflow](references/checkpoint-records.md) or equivalent explicit records
+with the limitation stated. Keep the complete [sibling installation](../document-feature-design/references/paired-installation.md).
 
-Resolve the target base and head to exact commit IDs, and record the effective comparison base (normally their merge base) and verification time. Retrieve the complete changed-file inventory, including deletions, renames, configuration, migrations, generated output, binaries, and submodule changes. If a hosting diff is truncated or omits content, use local Git objects or another complete source. Treat unavailable content as a coverage gap.
+## Investigate the whole change
 
-Read code at the recorded revisions. Use immutable Git object reads or an isolated checkout for execution; preserve the user's dirty files and never attribute them to a committed head. A local branch name does not establish the current remote PR head. When freshness matters, resolve current PR metadata through the available host tooling and compare it to the reviewed snapshot. For multiple repositories, keep one snapshot/inventory per repository and record their integration relationship.
+Follow the [complete workflow](references/full-review-workflow.md): assess existing
+architectural context, build the whole-change model, investigate behavioral units
+and directly check their interactions. Reuse designs by reference. Use the companion
+documentation skill only for material context gaps or requested authoring.
 
-Keep working notes outside tracked source by default; do not commit review artifacts unless requested. Scope-limited review is valid, but its verdict must name that scope and the unreviewed areas.
+Read linked requirements and relevant PR discussions; retain source/criteria snapshots,
+authority and access limits. Separate accepted intent, descriptions, proposals and
+inference. A URL or PR paraphrase is not evidence of reading a ticket.
 
-## Check linked requirements
+Assess `standard` or `deep` from actual behavior. Substantial interacting changes,
+consequential uncertainty and explicit deep requests require the
+[deep investigation and challenge gate](references/behavioral-depth.md). Mechanical
+volume alone does not. Select tests and source traces that resolve actual risks;
+prepare isolated compatible environments when execution is needed.
 
-Read relevant tickets and documents linked from the PR or supplied by the user, using their available connectors or source tooling (for example, a linked Linear ticket). Inspect the actual content, including material acceptance criteria and decision updates; a URL, title, PR paraphrase, or design marker does not count as reading it. Follow further links only when needed to resolve scope or a consequential requirement, rather than crawling the whole project.
+Delegate bounded independent investigations when useful and permitted by the user
+and runtime. This skill requests that selective delegation; it does not require a
+team for every change. Keep one lead accountable for integration, verification and
+the final verdict. Record exact worker scope and evidence; agreement is not proof.
 
-Record each relevant source's identity/link, immutable version or retained relevant-content snapshot with hash, retrieval time, authority/status, read status, and the criteria it contributes. A retrieval timestamp alone does not preserve mutable criteria. Apply the shared [handoff and freshness contract](../document-feature-design/references/review-handoff.md), including on unchanged-head resumptions. Distinguish accepted requirements, descriptive context, and proposals. If a source is unavailable or remains unread, record the reason and impact, continue independent code review, and qualify requirements coverage in the verdict. Do not silently substitute the PR summary or rewrite an accepted requirement to fit the implementation. Code/integration coverage may be complete while requirements verification is limited; state both separately.
+## Save verified work and resume precisely
 
-Read relevant existing PR review threads, review summaries and issue comments, including author responses and resolved/outdated discussions when material. Private/read-only review permits reading them; publication authority is unrelated. Verify pagination or record the unread remainder. For a blind discovery pass, withhold prior findings until the initial result is saved, then reconcile the discussions against the exact reviewed head. Record retrieval time, read status, relevant thread IDs and dispositions (still valid, fixed, duplicate, rejected with evidence, or unresolved). Prior comments are leads and possible decision context, not proof of defects or authority to change requirements. See the [discussion and preparation guidance](references/review-context-and-environment.md).
+Use `assess` and `record` from the quickstart for routine updates. Use `checkpoint`
+for batch evidence, critical boundaries and challenge results. Save after each
+verified pass; only the lead updates the canonical run. Every reviewed path needs
+a precise evidence locator and conclusion. Retain unread source and unresolved
+hypotheses as gaps, including when a tool truncates output.
 
-## Select and escalate the review mode
+Follow [coverage and resumption rules](references/review-completion.md) before
+continuing earlier work. Refresh material criteria even at an unchanged head.
+Preserve prior snapshots and verdicts; reopen affected claims and justify evidence
+carry-forward. A focused follow-up stays in this workflow and does not require a
+new team, design document or whole-PR rerun.
 
-After the complete diff inventory and linked-requirements check, inspect the actual changed behavior, a representative execution path and its relevant consumers. Use a bounded assessment before broad documentation discovery, companion authoring, worker assignment or environment setup. A PR title, small line count or green tests cannot establish low risk. Record the selected mode and concrete evidence in the matching template or an equivalent existing record.
+## Complete and deliver
 
-| Mode | Select when | Workflow and record |
-| --- | --- | --- |
-| `light` | The intended change, affected consumers and relevant contracts are understood; the consequences can be checked in one focused pass without material unresolved architectural or cross-boundary questions | Lead reviews directly; use [compact review record](assets/light-review-record-template.md) and the light workflow below |
-| `full` | Explicit full-mode/deep investigation is requested; interacting behavioral units require broader investigation; material changes affect authorization, financial effects, durable ownership/recovery, data/contract compatibility; or bounded assessment leaves consequential impact or architectural questions unresolved | Read [complete review workflow](references/full-review-workflow.md); use [full review record](assets/review-record-template.md) |
+Reconcile the full inventory and integration coverage, verify findings, refresh
+criteria and actual PR revisions, and disclose limits. A reviewed file may contain
+a defect; unresolved required investigation prevents a comprehensive verdict.
+Separate existing regression results, integration checks and investigative probes.
+Rank actionable findings by impact with trigger, consequence and source evidence.
 
-Judge the actual behavior and impact. A request to review every changed file describes coverage, not necessarily full mode. Incidental sensitive terminology, a missing design marker or a large mechanical diff alone do not force full mode. A one-line change can require it. Full mode does not require subagents, a new architecture document or every available test suite. Preserve explicit user limits on scope, time and delegation; if they prevent necessary investigation, report a limited/partial review and the specific missing work rather than a complete verdict.
+Fill the report and run:
 
-Escalate automatically from `light` to `full` whenever investigation reveals a full-mode condition: an unexpected consequential caller, interacting state/contract changes, conflicting authoritative intent, or material uncertainty that a focused trace cannot resolve. Retain the existing lead. Before expanding, preserve an inspectable copy of the compact record and record the trigger, evidence, time, exact comparison, newly required checks and affected coverage. Extend the current record to the full structure; keep one authoritative current coverage inventory. At unchanged revisions, retain valid checkpoints and reopen only claims affected by the new evidence; at changed revisions, create a fresh inventory and reassess carry-forward evidence as described below. Do not repeat completed investigation solely because the mode changed.
+```bash
+python <skill-dir>/scripts/review_run.py finish <review-folder>/run.json
+```
 
-Do not silently downshift after finding a difficult boundary or failing environment setup. On a new revision, reassess the remaining work together with inherited unresolved obligations; a small follow-up diff does not erase the earlier integration or coverage requirements. Record any new mode choice and why it is sufficient.
+This checks required review records, follows referenced evidence and verifies a
+portable archive. Report structural validation separately from semantic completeness.
+For partial reviews or special packaging, use [durable delivery](references/durable-delivery.md);
+deliver useful findings with explicit gaps rather than manufacturing completion.
 
-## Run a light review
+Detailed phase timing, liveness and model telemetry are optional. See
+[run diagnostics](references/run-record.md) only when requested or useful. Use
+`check --require-diagnostics` to audit those observations separately. Missing telemetry
+cannot waive missing review evidence, and preferred model settings cannot establish quality.
 
-The Astra/xhigh lead reviews all changed paths and follows relevant unchanged callers and dependencies directly. Explain before/after behavior, applicable invariants and the relevant success/failure or compatibility interaction in the compact record. A single unit is sufficient when it describes the actual change; use precise evidence locators for each file rather than manufacturing a large review map. Reuse design definitions and scenario IDs by reference; record only review questions, evidence, dispositions and material deltas. A small descriptive gap may use a provisional paragraph with sources and explicit assumptions. It does not establish an accepted requirement.
-
-Read supplied or PR-linked designs where relevant and check their applicability. Without a supplied design, the diff, actual requirements and bounded source trace may provide sufficient context directly in the record. Absence of a standalone design, marker, formal review map or scenario table is not itself a context gap. Do not perform broad design discovery, invoke document-feature-design, generate a separate architecture document or create workers by default in light mode. If a material architectural gap requires those steps, escalate and follow the full workflow. An explicitly requested documentation deliverable must still be honored through the companion under the existing lead.
-
-Keep one concise narrative and canonical run. Link machine-recorded snapshots, execution configuration, timing and per-file status instead of manually restating them. Combine environment/provenance/check results when simple; omit unused tables and use one statement for immaterial items. One phase and a scope checkpoint followed by a verified-pass checkpoint are often sufficient; extra checkpoints correspond to actual handoffs or changes.
-
-Inspect the affected integration boundary even for a small change. Select focused tests or source traces that resolve the relevant risks; use the shared environment and evidence rules below. Do not install a whole environment for a prose-only change with no relevant execution check. When execution is necessary, a missing dependency requires the normal isolated preparation attempt; light mode is not an exemption. Complete the same inventory reconciliation and final freshness check as full mode.
-
-## Prepare isolated validation environments
-
-Choose relevant checks from the behavior and uncertainty, not the mode label. Record a justified source-only assessment when execution would not add relevant evidence; do not omit necessary tests simply to keep a review light.
-
-When execution is useful, the lead prepares and records one validation plan before assigning parallel tests: suite or experiment, purpose, owner, source revision, environment, output location, and result. Use separate compatible environments for different runtimes or conflicting services when needed; keep their setup coordinated. Source investigation may proceed while setup is repaired. Use a small import/configuration check or focused test to establish that the runtime and critical dependencies work before launching many suites.
-
-Select a runtime supported by the reviewed project before installing dependencies or assigning tests. Inspect version pins, manifest constraints and the relevant CI/container lane; explain conflicts and choose the lane being validated. Record the selected executable/version with `review_environment.py`, then use that runtime for the package manager, install hooks and checks. A host default is not compatibility evidence. Follow the [runtime alignment and dependency preparation path](references/review-context-and-environment.md) for unavailable runtimes, multiple lanes, native/platform constraints and sanitized registry/artifact provenance. Reuse verified compatible environments with separate writable caches/build outputs; a matching lockfile alone or a symlink into another mutable installation is insufficient.
-
-If dependencies are missing or incompatible, prepare an isolated checkout/export, virtual environment, or container and install them using the project's package manager and reproducible lockfile mode when available. Routine isolated dependency preparation is part of the review; attempt it instead of stopping at a missing-package error when access permits. Keep the user's checkout, lockfiles, global environment and shared installation unchanged. Inspect relevant install hooks and test setup for external effects; use local disposable services and avoid inheriting production credentials. Record commands, runtime versions, dependency provenance, setup changes and remaining limitations. If access, credentials or tooling prevent installation, report that limitation and continue useful source review; do not replace missing dependencies with behavior-changing mocks to manufacture a pass.
-
-Reviewers use the prepared environment and assigned suites. Report a shared environment failure to the lead, who coordinates one repair and updates affected reviewers; do not independently install conflicting versions or repeat the same workaround. Repeat a suite only for changed code/environment, an unresolved failure, or a focused independent reproduction. Keep resource-heavy or stateful tests serialized when they would conflict.
-
-## Verify findings and validation evidence
-
-Evaluate functional correctness and availability as well as safety. Trace representative admitted input classes through the connected success path: admission → routing/selection → execution → promised result or recovery. A later safe refusal may still break a supported workflow; absence of fund loss or external effects does not refute that hypothesis. Establish the expected outcome from accepted requirements or an explicit compatibility decision, compare base/head, and justify severity by observable impact. If intent is ambiguous, preserve a requirements-dependent candidate and the exact missing decision; neither dismiss it as safe nor promote it to a verified defect without evidence. Where relevant, pair rejection tests with a control that proves an admitted supported input can succeed.
-
-Separate suspicion from a verified finding. Establish a concrete trigger, reachable code path, observable consequence, and relationship to this change. Check guards, callers, and base behavior; classify pre-existing issues separately. Use a targeted reproduction or test when it materially resolves uncertainty, otherwise retain a verifiable code trace. Do not run tests that can contact production or mutate external systems without appropriate authorization. Record what ran, its revision and result, and what it establishes. Separate existing regression suites, integration/contract checks, and investigative reproductions. For a reproduction, state the observed behavioral outcome (defect reproduced, not reproduced, or inconclusive), the intended assertion, and any positive control; a passing assertion that demonstrates a bug is not a correctness pass. Disclose skipped/deselected checks, modified harnesses and mocks. Do not combine these categories into a headline green-test total or count repeated runs as distinct coverage. Deduplicate findings by root cause and impact; do not use agent agreement or unsupported confidence scores as proof. Unresolved suspicions remain questions or gaps, even if they prevent a confident verdict.
-
-## Keep coverage durable and revision-specific
-
-In both modes, preserve the snapshot, mode and selection/escalation reasons, unit assignments, file dispositions, relevant interactions, evidence, findings, unresolved questions, and next actions across context resets. The compact record may hold these briefly; coverage requirements are unchanged. Use `unreviewed`, `partial`, `reviewed`, or `excluded` for file coverage; distinguish review progress from whether findings remain. A reviewed file can contain a blocking finding. Justify exclusions and disclose them in the final scope; generated output still needs appropriate evidence, such as reproducible generation and inspection of its source. Store evidence pointers and concise conclusions, not complete tool transcripts. Update the record and file dispositions when the lead verifies each handoff or bounded pass, before switching work; do not defer all reconciliation until the final response. Name the checked symbol, scenario, test or artifact section and the conclusion it supports, rather than citing an entire handoff without a locator.
-
-Grouped evidence must explicitly map each covered path to its checked symbol, behavior, assertion or mechanical transformation. A repeated generic claim, filename appended to a broad section, or passing suite alone is insufficient. Reconcile the run helper's evidence warnings against the actual mapping instead of merely rewording identical claims. Save one `checkpoint` after each lead-verified pass, before switching work; include distinct file dispositions, resolved hypotheses and the relevant phase transition together. Verify its receipt before claiming the record is current. Workers submit handoffs; only the lead commits their assessment.
-
-Bound reads by symbols or diff regions. When output is truncated, record the omitted region as unread and retrieve it in smaller pieces or through another complete source before closing affected coverage. If it cannot be retrieved, retain a partial disposition. Save the completed trace, unresolved hypothesis, evidence locations and next step before changing batches or approaching a context reset.
-
-For a local Git comparison, [scripts/review_coverage.py](scripts/review_coverage.py) creates the seed inventory without changing source. Import it once into the canonical run, whose checker validates the embedded inventory and evidence. Its standalone `record-batch` remains available for legacy records; [coverage guidance](references/coverage-record.md) explains evidence fields and limitations. Use `promote` to preserve a legacy run and move to atomic checkpoints. Never modify snapshot/path identities to carry evidence forward. Full mode and complete coverage remain separate; structural checks cannot establish freshness, requirements access or review quality.
-
-If the helper cannot represent the comparison (for example, multiple merge bases or a requested working-tree snapshot), maintain equivalent explicit records and disclose the validation limitation; do not silently change scope to make it pass. Its inventory includes both sides of detected renames, and tracks deletions, binary paths, and submodule paths; those entries still need content-specific investigation.
-
-## Track progress without disrupting work
-
-Use the [run record](references/run-record.md) for phase timing, expected next checkpoints and one bounded liveness observation when progress is overdue. The coordinator captures intake before delegation; the lead records its start on accepting the assignment, phase transitions with completed passes, and completion on handoff. The coordinator records delivery readiness and, only with host evidence, actual delivery. Inspect saved evidence or known process/agent status before interrupting; elapsed time alone is not a stall. Preserve failed attempts. A helper failure may use the same-schema fallback; a platform rejection never authorizes retrying, rephrasing or rerouting the blocked action. Missing material investigation remains partial.
-
-Separate end-to-end elapsed time, lead execution and overlapping phase intervals. Record actual phase boundaries as they occur; retrospective records need source-backed timestamps or explicitly unknown duration. Never record two late checkpoints as a near-zero measurement of earlier work. Distinguish delivery-ready from user-visible delivery; report the latter only when host evidence exists. Unexplained gaps remain unclassified, not attributed to agent idleness or scheduler behavior.
-
-## Resume after changes and deliver a verdict
-
-Before resuming, reassess material accepted requirements and architectural context against their retained criteria snapshots, even when Git revisions are unchanged. Read the current material content and authority; record accepted changes, proposals, unchanged criteria or refresh limits. Reopen only affected conclusions, scenarios and checks and retain unaffected evidence with reasons. Preserve the prior verdict. A completed run may be retained as a prior run for a new continuation, including at the same head; an in-progress run keeps its current checkpoints.
-
-Compare current base/head and relevant integration revisions to the record. If they changed, retain the old record, create a fresh inventory, and inspect the delta. Reopen changed units and affected callers, contracts, scenarios, and tests. Carry forward earlier conclusions only with an explicit reason their evidence and assumptions remain valid; unchanged file contents alone do not establish this. Record the prior revision and transfer rationale in evidence. Repeat the integration checks affected by the update. A force-push or base change can alter the comparison even when the visible change seems small.
-
-Reassess the mode under the selection/escalation rules above, then reassess delegation for the remaining work; do not respawn a full team for a small fix. Keep outstanding assignments and returned handoffs tied to their original snapshots. Redirect or stop obsolete work as appropriate, and do not merge stale results into current coverage without checking the affected evidence and assumptions.
-
-Reassess architectural context against the source and criteria deltas and any newly available authoritative decisions. A light review may keep sufficient context in its compact record; material new gaps trigger full mode before companion authoring. Reuse it when still applicable and record why; refresh it through the companion only when material context is missing or outdated. Preserve the prior draft or an inspectable version before refreshing, and link the new context to the new review snapshot. A routine fix does not require a new design document, and an old draft's baseline must not be silently relabeled as current.
-
-Before finalizing, reconcile the complete inventory, inspect consequential integration boundaries, validate findings, refresh material criteria/context and refresh the PR's actual head when available. If it moved, update the review or state the exact reviewed snapshot and remaining delta. For publication, also refresh checks, review status, merge state, and unresolved review threads as relevant to the requested action; these are separate facts from code-review conclusions.
-
-For full reviews, apply the depth assessment and completion gate in the complete workflow. File accounting, regression totals, review speed and finding count cannot substitute for supported behavioral investigations. Report file coverage and investigation depth separately; unresolved material hypotheses, missing required challenge passes or unread truncated regions prevent a comprehensive-completion claim. Validate the execution manifest with `review_run.py check --require-complete` when using it; its result is structural evidence only. Report substantive review completeness separately from execution-policy conformance: an unsupported lead setting is a policy gap, while unresolved material investigation is a review gap. Neither implies the other.
-
-Before final delivery, follow [durable delivery](references/durable-delivery.md): save the report, run/coverage records and selected supporting evidence/probes in the durable location, verify hashes and portable evidence references, and link that report in the final response. Keep dependency trees and caches temporary. Preserve original records when making portable copies; do not change snapshot identities. If archiving fails, deliver the substantive review with an explicit archive limitation and recoverable evidence location, without claiming durable delivery succeeded.
-
-Report findings ordered by impact, with file/symbol or verified line references, trigger, consequence, and supporting evidence. State the final mode and any escalation reason, reviewed revisions and scope, linked requirements read or missing, reused or prepared context and its limitations, relevant checks by category and their limits, remaining findings, exclusions, and coverage gaps. Separate file/integration coverage from requirements verification; an unread material ticket prevents claiming the latter is complete. Full coverage requires every changed area accounted for and reviewed plus the relevant interaction checks; it does not prove absence of defects, approval, deployment, or merge readiness. If material work remains, report a partial review and the concrete next steps instead of a blanket clean verdict. Stop when the authorized scope is complete or a specific access/evidence limitation prevents further useful progress; do not repeat whole-PR reviews solely to obtain more agreeing verdicts.
-
-## Validate skill changes
-
-Run `python -m unittest discover -s <skill-dir>/scripts -p 'test_*.py'`. Validate templates through realistic filled records as well as structural checks. Exercise light/full/deep review, escalation/revision reassessment, lead reuse/routing, precise coverage, independent challenges and unresolved hypotheses. Check atomic checkpoint failure/retry/stale updates, manual records and legacy promotion, early intake and unknown timing, runtime mismatch/qualified execution, admitted-but-refused behavior, private discussions and archive relocation/integrity. Record executed versus simulated/inspected checks. Helpers cannot attest mode/depth selection, backend model execution or semantic correctness.
+Use the [filled review](examples/large-pr-review.md) and [follow-up](examples/follow-up.md)
+for output guidance. When changing helpers, run their `test_*.py` suite and the paired
+installation check; use the repository evaluation workflow to assess actual agent outcomes.

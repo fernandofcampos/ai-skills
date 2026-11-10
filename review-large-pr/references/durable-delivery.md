@@ -1,5 +1,10 @@
 # Durable review delivery
 
+For completed reviews, prefer `review_run.py finish <run>/run.json` from the
+[quickstart](quickstart.md). It validates required review records, selects linked
+evidence and checks the archive. The lower-level commands below support partial
+reviews and custom packaging; clearly state substantive gaps in the report.
+
 Choose a task-owned persistent folder outside tracked source, for example
 `<task-workspace>/reviews/<repo>-pr-<number>/<head-prefix>/`. Use a new run folder
 on repeated reviews. Keep working evidence there from the start when convenient,
@@ -99,7 +104,7 @@ Unsupported comparisons retain equivalent explicit records with validation limit
 Report review completeness, record validation and archive integrity separately;
 packaging failure cannot erase real evidence or repair stale review dispositions.
 
-Record `delivery_ready` after consolidation and successful required checks, before packaging; this is
+When collecting optional lifecycle diagnostics, record `delivery_ready` after consolidation and successful required checks, before packaging; this is
 readiness to hand off the result, not the final user-visible delivery timestamp.
 If later checks reopen work, preserve and qualify the earlier checkpoint and
 record corrected readiness in a timing supplement; do not report it as final.

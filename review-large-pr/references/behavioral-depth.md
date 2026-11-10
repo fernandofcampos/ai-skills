@@ -1,8 +1,8 @@
 # Behavioral depth for consequential or very large changes
 
-Read after selecting `deep` investigation in full mode. Keep Astra/xhigh as the
-single lead and focused reviewers under the shared model policy. This is a depth
-requirement within full mode, not a third mode or a mandatory whole-PR rerun.
+Read after selecting `deep` investigation. Keep the designated lead
+and focused reviewers under the shared model policy. Apply these requirements
+within the review workflow, retaining valid evidence on follow-up passes.
 
 ## Define the investigations
 

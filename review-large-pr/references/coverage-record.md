@@ -8,18 +8,17 @@ The standalone update/check commands below remain supported for legacy records.
 
 Use this reference when initializing, checkpointing or checking a local Git review. The helper uses only Python's standard library and Git. It never fetches refs, reads tickets, installs dependencies or edits source. Keep one record per repository/comparison; the lead alone writes it.
 
-The same schema and commands apply to `light` and `full` modes; there is no mode
-flag. A light review can have complete coverage, and a full review can remain
-partial. Record mode selection and escalation in the narrative review record.
-The helper does not select a mode or verify that a mode's reasoning is sufficient.
-Compact evidence can use one unit and precise citations into the compact record;
-every changed path and relevant interaction still needs its own disposition.
+Coverage and investigation depth are separate. Record depth and its behavioral
+rationale in the narrative and canonical run; this helper accounts for paths and
+evidence without judging whether the investigation is sufficient. Group related
+paths into meaningful units with precise citations; every changed path and
+relevant interaction still needs its own disposition.
 
-On escalation at the same snapshot, retain the current inventory and valid
+When new risks emerge at the same snapshot, retain the current inventory and valid
 checkpoints, preserve the previous narrative, and reopen evidence affected by the
 new risk or dependency. If revisions changed, create a fresh inventory and retain
 the old record; reassess carried-forward claims rather than editing snapshot
-metadata. Changing mode alone neither clears nor certifies existing coverage.
+metadata. A depth assessment alone neither clears nor certifies existing coverage.
 
 ## Initialize and check
 
@@ -95,7 +94,7 @@ File states: `unreviewed`, `partial`, `reviewed`, `excluded`. Reviewed files req
 
 Without `--require-complete`, a structurally valid unfinished record remains resumable and is reported as incomplete. With it, all files must be reviewed and integration reviewed or justified as not applicable. A reviewed file can contain an open defect. Structural completion is only inventory/accounting: it does not establish source freshness, evidence quality, requirements access, test correctness, approval or absence of bugs. Report code/integration coverage separately from requirements and validation limits.
 
-For full/deep work, keep the critical-boundary hypothesis/challenge ledger in the
+For deep investigation, keep the critical-boundary hypothesis/challenge ledger in the
 [run record](run-record.md) and narrative. Complete file accounting cannot override
 an inconclusive material investigation, missing challenge or unread truncated
 region. Neither helper determines the number of bugs a review ought to find.

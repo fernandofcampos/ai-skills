@@ -14,6 +14,7 @@ from types import SimpleNamespace
 
 from review_coverage import CoverageError, atomic_save, audit_evidence, evidence_list, validate_record
 from review_timing import MILESTONES, observation, timestamp, timing_summary, validate_observation
+from review_policy import load_policy, preferred_configuration, preferences
 
 
 def now():
@@ -30,18 +31,7 @@ def read(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
-def required_configuration(data):
-    override = data.get('user_override')
-    if override is None:
-        return 'gpt-6-astra', 'xhigh'
-    if not isinstance(override, dict) or override.get('authority') != 'explicit_user':
-        raise CoverageError('A model override requires explicit_user authority and its source.')
-    for field in ['model', 'effort', 'source']:
-        nonempty(override.get(field), 'user_override.' + field)
-    return override['model'], override['effort']
-
-
-def route(request):
+def route(request, policy=None):
     """A routing recommendation from supplied configuration, never discovery."""
     if not isinstance(request, dict):
         raise CoverageError('Routing input must be an object.')
@@ -49,9 +39,9 @@ def route(request):
     role = request.get('role', 'unassigned')
     if role not in {'unassigned', 'lead', 'reviewer', 'documentation-author'}:
         raise CoverageError('Unknown assignment role.')
-    required_model, required_effort = required_configuration(request)
-    configured = (request.get('model') == required_model
-                  and request.get('effort') == required_effort
+    preferred_model, preferred_effort = preferred_configuration(request, policy)
+    configured = (request.get('model') == preferred_model
+                  and request.get('effort') == preferred_effort
                   and isinstance(request.get('configuration_source'), str)
                   and bool(request['configuration_source'].strip()))
     existing = request.get('existing_lead')
@@ -61,17 +51,13 @@ def route(request):
         action, lead = 'retain_assignment', existing
     elif existing and existing != agent:
         action, lead = 'reuse_existing', existing
-    elif configured:
-        action, lead = 'reuse_current', agent
-    elif role == 'lead' or existing == agent:
-        action, lead = 'retain_lead_report_configuration_gap', agent
-    elif request.get('can_delegate') is True:
-        action, lead = 'delegate_once', None
     else:
-        action, lead = 'lead_direct_report_configuration_gap', agent
-    return {'action': action, 'lead': lead, 'required_model': required_model,
-            'required_effort': required_effort,
+        action, lead = 'reuse_current', agent
+    return {'action': action, 'lead': lead, 'preferred_model': preferred_model,
+            'preferred_effort': preferred_effort, 'preference_confirmed': configured,
             'note': 'Use only current-task configuration or explicit invocation evidence. '
+                    'Reuse the current lead even when settings are unknown or differ. '
+                    'Delegate for useful independent work, not model-name compliance. '
                     'This result neither observes nor changes runtime settings.'}
 
 
@@ -102,7 +88,8 @@ def check_installation(skill_root):
                 design / 'scripts/requirements.txt']
     required.extend(root / 'scripts' / name for name in (
         'review_run.py', 'review_coverage.py', 'review_checkpoint.py',
-        'review_archive.py', 'review_environment.py', 'review_timing.py'))
+        'review_archive.py', 'review_environment.py', 'review_timing.py',
+        'review_lifecycle.py', 'review_policy.py'))
     for path in required:
         if not path.is_file():
             raise CoverageError(f'Incomplete paired installation: {path}')
@@ -145,7 +132,7 @@ def init(args):
     with Path(args.output).open('x', encoding='utf-8') as stream:
         json.dump(data, stream, indent=2)
         stream.write('\n')
-    print('Created run manifest. Record lead configuration and depth assessment before completion. '
+    print('Created run manifest. Record lead identity and depth assessment before completion. '
           'Fingerprints identify installed resources, not proof that every resource was loaded.')
 
 
@@ -238,7 +225,7 @@ def require_schema(data):
         raise CoverageError('Expected run manifest schema_version 1 or 2.')
 
 
-def inspect_run(data, path, require_complete=False, at=None):
+def inspect_run(data, path, require_complete=False, at=None, require_diagnostics=False):
     require_schema(data)
     created = timestamp(data.get('created_at'))
     bootstrap = data['schema_version'] == 2 and data.get('mode') == 'unassessed'
@@ -246,7 +233,7 @@ def inspect_run(data, path, require_complete=False, at=None):
         raise CoverageError('Mode must be light or full.')
     nonempty(data.get('selection_reason'), 'selection_reason')
     root = Path(path).resolve().parent
-    pending, warnings, policy_pending = [], [], []
+    pending, warnings, policy_pending, diagnostic_pending = [], [], [], []
     coverages = data.get('coverage')
     if not isinstance(coverages, list) or (not coverages and data['schema_version'] == 1):
         raise CoverageError('At least one coverage record is required.')
@@ -284,6 +271,7 @@ def inspect_run(data, path, require_complete=False, at=None):
         extra_pending, extra_warnings = inspect_checkpoint_fields(data, root)
         pending.extend(extra_pending)
         warnings.extend(extra_warnings)
+    preferences(data.get('model_policy'))
     versions = data.get('installed_skill_snapshot')
     if not isinstance(versions, list) or not versions:
         raise CoverageError('Installed skill fingerprints are required.')
@@ -295,19 +283,24 @@ def inspect_run(data, path, require_complete=False, at=None):
             warnings.append(f'Installed resource changed/missing since capture: {p}. Preserve the old hash and record any newly used version.')
     lead = data.get('lead')
     if lead is None:
+        pending.append('lead identity unrecorded')
         policy_pending.append('lead configuration unrecorded')
     elif not isinstance(lead, dict):
         raise CoverageError('lead must be an object or null.')
     else:
-        for field in ['id', 'selection', 'model', 'effort', 'configuration_source', 'evidence_kind']:
-            nonempty(lead.get(field), 'lead.' + field)
-        if lead['selection'] not in {'current', 'existing', 'delegated', 'unavailable'} or lead['evidence_kind'] not in {'runtime_config', 'invocation', 'unknown'}:
+        nonempty(lead.get('id'), 'lead.id')
+        for field in ['selection', 'model', 'effort', 'configuration_source', 'evidence_kind']:
+            if field in lead:
+                nonempty(lead[field], 'lead.' + field)
+        if lead.get('selection', 'current') not in {'current', 'existing', 'delegated', 'unavailable'} or lead.get('evidence_kind', 'unknown') not in {'runtime_config', 'invocation', 'unknown'}:
             raise CoverageError('Invalid lead selection/configuration evidence kind.')
-        required = required_configuration(lead)
+        preferred = preferred_configuration(lead, data.get('model_policy'))
         if lead.get('user_override'):
             warnings.append('Explicit user model override recorded; validate its authority against the user request.')
-        if (lead['model'], lead['effort']) != required or lead['evidence_kind'] == 'unknown' or lead['selection'] == 'unavailable':
-            policy_pending.append('Required leadership is not supported by configuration/invocation evidence (default Astra/xhigh)')
+        if ((lead.get('model'), lead.get('effort')) != preferred
+                or lead.get('evidence_kind', 'unknown') == 'unknown'
+                or not lead.get('configuration_source') or lead.get('selection') == 'unavailable'):
+            policy_pending.append('Preferred lead settings are unconfirmed or differ; no backend execution claim')
     depth = data.get('depth')
     if not isinstance(depth, dict) or depth.get('level') not in {'unassessed', 'standard', 'deep'}:
         raise CoverageError('Depth level must be unassessed, standard or deep.')
@@ -371,7 +364,7 @@ def inspect_run(data, path, require_complete=False, at=None):
             raise CoverageError('Resolved truncation requires follow-up evidence.')
     phases = validate_events(data)
     if not phases:
-        pending.append('no phase timing recorded')
+        diagnostic_pending.append('no phase timing recorded')
     current = at or datetime.now(timezone.utc)
     for (owner, phase), state in phases.items():
         e = state['last']
@@ -385,25 +378,36 @@ def inspect_run(data, path, require_complete=False, at=None):
         if state['basis'] == 'legacy':
             warnings.append(f'Legacy timing for {owner}/{phase}: actual phase boundaries are not attested.')
         if not ended:
-            pending.append(f'active phase: {owner}/{phase}')
+            diagnostic_pending.append(f'active phase: {owner}/{phase}')
             if e.get('expect_seconds') and (current-recorded).total_seconds() > e['expect_seconds']:
                 warnings.append(f'Progress observation due for {owner}/{phase}; inspect one status/checkpoint. Elapsed time is not proof of a stall.')
     finish = max((validate_observation(e)[1] for e in data['events']), default=created)
     if any(p['last']['state'] not in {'complete', 'failed'} for p in phases.values()):
         finish = current
-    print(f'Manifest observation window={(finish-created).total_seconds():.1f}s; not end-to-end duration. Phase intervals may overlap; do not sum them.')
+    show_timing = bool(phases or (data.get('timing') or {}).get('milestones') or require_diagnostics)
+    if show_timing:
+        print(f'Manifest observation window={(finish-created).total_seconds():.1f}s; not end-to-end duration. Phase intervals may overlap; do not sum them.')
     durations, timing_warnings = timing_summary(data)
-    warnings.extend(timing_warnings)
-    for name, seconds in durations.items():
+    if show_timing:
+        warnings.extend(timing_warnings)
+    points = {row['name'] for row in (data.get('timing') or {}).get('milestones', [])}
+    for name in ('intake', 'lead_start', 'lead_complete'):
+        if name not in points:
+            diagnostic_pending.append(f'lifecycle endpoint missing: {name}; record evidence or explicitly unknown')
+    for name, seconds in (durations.items() if show_timing else []):
         print(f'Timing {name}: ' + ('unknown' if seconds is None else f'{seconds:.1f}s'))
     for warning in warnings:
         print('WARNING: ' + warning)
     print('Recorded review/record obligations: ' + ('pending: ' + '; '.join(pending) if pending else 'resolved') + '.')
-    print('Execution-policy conformance: ' + ('limited: ' + '; '.join(policy_pending) if policy_pending
+    print('Model observations (optional): ' + ('limited: ' + '; '.join(policy_pending) if policy_pending
           else 'supported by recorded configuration/invocation; backend execution is not attested') + '.')
-    pending.extend(policy_pending)
+    diagnostic_pending.extend(policy_pending)
+    if require_diagnostics or show_timing:
+        print('Optional diagnostics: ' + ('; '.join(diagnostic_pending) if diagnostic_pending else 'recorded') + '.')
     if require_complete and pending:
         raise CoverageError('Run incomplete: ' + '; '.join(pending))
+    if require_diagnostics and diagnostic_pending:
+        raise CoverageError('Diagnostics incomplete: ' + '; '.join(diagnostic_pending))
     print('PASS: structural run checks; ' + ('incomplete: ' + '; '.join(pending) if pending else 'recorded obligations resolved') +
           '. Lead must verify depth, evidence meaning, freshness and actual execution; no defect-count quota.')
     return pending, warnings
@@ -414,6 +418,8 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     routing = sub.add_parser('route', help='Recommend lead reuse from supplied current-task configuration.')
     routing.add_argument('--input', required=True)
+    routing.add_argument('--repo', help='Project root containing optional .ai-skills.json.')
+    routing.add_argument('--policy', help='Explicit project model policy file.')
     installation = sub.add_parser('check-installation', help='Verify the supported sibling pair and local resources.')
     installation.add_argument('--skill-root', default=str(Path(__file__).resolve().parent.parent))
     create = sub.add_parser('init', help='Capture coverage identities and installed skill fingerprints.')
@@ -424,6 +430,8 @@ def main(argv=None):
     create.add_argument('--skill-root', default=str(Path(__file__).resolve().parent.parent))
     from review_checkpoint import add_commands, dispatch
     add_commands(sub)
+    from review_lifecycle import add_commands as lifecycle_commands, dispatch as lifecycle_dispatch
+    lifecycle_commands(sub)
     update = sub.add_parser('event', help='Append a timestamped progress checkpoint; preserve earlier attempts.')
     update.add_argument('record')
     update.add_argument('--owner', required=True)
@@ -442,14 +450,17 @@ def main(argv=None):
     check = sub.add_parser('check', help='Validate records and report phase timing/observation warnings.')
     check.add_argument('record')
     check.add_argument('--require-complete', action='store_true')
+    check.add_argument('--require-diagnostics', action='store_true', help='Also require optional timing and model evidence.')
     args = parser.parse_args(argv)
     try:
-        if args.command in {'begin', 'checkpoint', 'promote', 'repair-evidence'}:
+        if args.command in {'start', 'assess', 'record', 'finish'}:
+            lifecycle_dispatch(args)
+        elif args.command in {'begin', 'checkpoint', 'promote', 'repair-evidence'}:
             dispatch(args)
         elif args.command == 'check-installation':
             check_installation(args.skill_root)
         elif args.command == 'route':
-            print(json.dumps(route(read(args.input)), indent=2))
+            print(json.dumps(route(read(args.input), load_policy(args.repo, args.policy)), indent=2))
         elif args.command == 'init':
             init(args)
         elif args.command == 'event':
@@ -457,7 +468,8 @@ def main(argv=None):
         elif args.command == 'milestone':
             milestone(args)
         else:
-            inspect_run(read(args.record), args.record, args.require_complete)
+            inspect_run(read(args.record), args.record, args.require_complete,
+                        require_diagnostics=args.require_diagnostics)
     except (CoverageError, OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1

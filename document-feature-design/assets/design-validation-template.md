@@ -10,6 +10,8 @@ model settings here are evidence, not configuration. -->
 - **Sources / snapshots / verified at:** [Source inventory link and exact baselines]
 - **Context assessment:** [Reused / updated / created; applicability and material gaps]
 
+<!-- Optional execution diagnostics; omit this table when unnecessary. -->
+
 | Role / task | Selection and concrete reason | Requested model / effort | Agent identity / execution evidence | Runtime-confirmed settings or not exposed | Result / handoff |
 | --- | --- | --- | --- | --- | --- |
 | [Lead or bounded assignment] | [Reused / lead-direct / delegated; evidence for this choice] | [Exact model and effort, or not requested] | [Identity and observed invocation/tool evidence; no invented confirmation] | [Actual evidence, not a repeated request] | [Artifact, findings, escalation or limitation] |
@@ -17,5 +19,5 @@ model settings here are evidence, not configuration. -->
 - **Semantic verification by lead:** [Source-to-claim checks, decisions, invariants, scenarios and gaps]
 - **Structural / repository checks:** [Commands or tools, inputs, results and evidence paths; skipped checks with reasons]
 - **Escalations / runtime limits:** [Preserved partial work and reason for changed assignment, or none]
-- **Substantive completeness / execution-policy conformance:** [Separate semantic/validation outcome from supported model/effort evidence and any policy limitation]
+- **Substantive completeness / optional diagnostics:** [Separate semantic/validation outcome from supported model/effort evidence and any policy limitation]
 - **Delivery:** [Verified artifact path and actions actually completed]

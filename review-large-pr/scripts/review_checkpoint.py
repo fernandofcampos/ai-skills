@@ -395,10 +395,6 @@ def inspect_checkpoint_fields(data, root):
     nonempty(recording.get('reason'), 'recording.reason')
     if recording['method'] == 'manual':
         warnings.append('Manual fallback record: verify the stated limitation and exact evidence; no helper execution is implied.')
-    points = {r['name'] for r in data.get('timing', {}).get('milestones', [])}
-    for name in ('intake', 'lead_start', 'lead_complete'):
-        if name not in points:
-            pending.append(f'lifecycle endpoint missing: {name}; record evidence or explicitly unknown')
     if not data.get('environments'):
         pending.append('validation environment decision missing (execution or justified source-only)')
     return pending, warnings
