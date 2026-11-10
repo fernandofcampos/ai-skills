@@ -4,7 +4,7 @@ Two companion skills for source-grounded code review and architecture documentat
 
 | Skill | Purpose |
 | --- | --- |
-| [review-large-pr](review-large-pr/SKILL.md) | Review PRs with adaptive light/full depth, revision-specific coverage, and durable evidence. |
+| [review-large-pr](review-large-pr/SKILL.md) | Review large or complex PRs with whole-change reasoning, revision-specific coverage, and durable evidence. |
 | [document-feature-design](document-feature-design/SKILL.md) | Create and maintain feature designs, RFCs, and ADRs with an accessible overview and traceable architectural detail. |
 
 Both complete skill directories are included, with their templates, references, helper scripts, tests, and Codex metadata. The design skill owns the shared model policy and handoff contract, so install **both directories as siblings**.
@@ -24,6 +24,8 @@ cp -R review-large-pr document-feature-design "$skill_root/"
 For an existing installation, retain a backup and replace both complete folders together after active reviews finish. See the [paired installation guidance](document-feature-design/references/paired-installation.md).
 
 ## Use
+
+Use `review-large-pr` when a large or complex change needs architectural context, cross-component investigation, or durable checkpoints for resumed work. Routine small PRs can use Codex's built-in review. Judge complexity by the interactions and uncertainty, not a fixed line or file count. A focused follow-up to a large review stays in the same workflow and reuses valid evidence.
 
 Example requests in Codex:
 

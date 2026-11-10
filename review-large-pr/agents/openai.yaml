@@ -1,4 +1,4 @@
 interface:
   display_name: "Review Large PR"
-  short_description: "Review PRs with adaptive depth and traceable coverage"
-  default_prompt: "Use $review-large-pr with one Astra/xhigh lead, automatic light/full selection, and deeper behavioral investigations and independent challenges when warranted; preserve revision-specific evidence and honest coverage limits."
+  short_description: "Review large or complex PRs with traceable coverage"
+  default_prompt: "Use $review-large-pr to review this large or complex PR with one Astra/xhigh lead, whole-change reasoning, integration checks, and deeper behavioral investigations and independent challenges when warranted; preserve revision-specific evidence and honest coverage limits."

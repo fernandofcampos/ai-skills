@@ -62,12 +62,15 @@ reject this until the actual assessment is attached.
 
 Assessment and investigation fields (submit through checkpoint):
 
+- `mode`: `full` once the review is assessed. `unassessed` is the bootstrap state;
+  `full` identifies the workflow and does not claim complete coverage.
+- `selection_reason`: concrete scope, interactions and uncertainty being reviewed.
 - `lead`: `id`, `selection` (`current`, `existing`, `delegated`, `unavailable`),
   `model`, `effort`, `configuration_source`, `evidence_kind` (`runtime_config`,
   `invocation`, `unknown`). Describe requested versus confirmed settings honestly.
 - `depth`: `level` (`standard` or `deep`) and behavioral `reason`. Deep requires
-  full mode. A light record may use standard depth, no separate boundary ledger
-  and one timed review phase; its coverage/integration evidence is still required.
+  a primary investigation and challenge for each critical boundary; both depths
+  require precise coverage and integration evidence.
 - `boundaries`: objects with stable `id`, actual `paths` (including unchanged
   consumers) and the critical `contract`. The lead verifies this inventory for
   omissions; a helper cannot infer all important boundaries from filenames.
@@ -82,6 +85,11 @@ Assessment and investigation fields (submit through checkpoint):
 - `timing.milestones`: lifecycle observations made by the coordinator/lead, each
   with `name`, `at`, `recorded_at`, `basis` and `source`. Schema 2 requires intake/lead-start/lead-complete entries at completion,
   permitting explicitly unknown times; older records retain timing warnings.
+
+The helpers continue to accept historical `light` records for compatibility.
+New reviews use `full`; the skill no longer selects a light workflow. Preserve
+historical records and reassess their evidence against the current workflow when
+continuing earlier work.
 
 Illustrative resolved investigation (replace it with actual evidence):
 
@@ -113,8 +121,8 @@ name the limitation preventing fresh review and is not described as independent.
 Use a small set of meaningful phases: context, environment, behavioral batches,
 integration/challenges and consolidation. Phases may overlap; report wall time
 separately from their intervals. Do not infer monetary cost or efficiency from
-raw token totals or sum overlapping durations. A single phase is enough for light
-work. Event states are `start`, `progress`, `waiting`, `blocked`, `complete`, `failed`.
+raw token totals or sum overlapping durations. A single phase can be sufficient
+for a focused follow-up. Event states are `start`, `progress`, `waiting`, `blocked`, `complete`, `failed`.
 Use a new phase ID for a retry, keeping the failed attempt. Notes identify the
 latest saved evidence, known process/agent state, remaining question and next step.
 
@@ -188,8 +196,8 @@ source investigation. Neither structural status certifies semantic completeness.
 Do not rerun a finished review just to obtain different model evidence or infer
 backend settings from an invocation request.
 
-At unchanged revisions, mode escalation retains the same manifest/checkpoints;
-preserve the earlier narrative and record the transition and reopened obligations.
+At unchanged revisions, newly discovered risks retain the same in-progress
+manifest/checkpoints; preserve the earlier narrative and record reopened obligations.
 At changed source revisions, preserve the old run, initialize new coverage/run
 records and link explicit reassessment before carrying evidence forward. Do not
 edit pinned identities to make stale work pass. Failed optional experiments may

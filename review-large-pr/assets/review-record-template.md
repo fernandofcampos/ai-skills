@@ -1,8 +1,8 @@
-<!-- Full-mode narrative. Adapt and remove instructions/placeholders. Keep local by
+<!-- Review narrative. Adapt and remove instructions/placeholders. Keep local by
 default. run.json embeds authoritative per-file status; avoid a second conflicting file list.
 For a different coverage format, retain the same snapshot and evidence semantics.
-Use light-review-record-template.md for light mode. On escalation preserve the
-compact record before expanding it; do not recreate valid unchanged coverage. -->
+Link canonical snapshots, configuration and timing instead of repeating them.
+Omit unused tables; preserve applicable evidence on focused follow-ups. -->
 
 # [PR or change]: review record
 
@@ -18,11 +18,11 @@ compact record before expanding it; do not recreate valid unchanged coverage. --
 
 - **Latest committed checkpoint / record method:** [Canonical run path, receipt ID/revision; helper or manual fallback, preserved prior record and reason; discrepancies or uncommitted handoffs remain explicit]
 
-## Review mode and transition history
+## Scope and reassessment history
 
-- **Current mode / selection evidence:** [full; concrete impact, interactions, uncertainty or explicit user scope that requires it; full mode is independent of delegation and coverage completion]
-- **Previous mode / preserved record:** [Initial full selection, or light record/version link retained before escalation]
-- **Transition:** [Time, exact comparison, triggering source/evidence and newly required investigation; or no transition]
+- **Scope / assessment:** [Concrete impact, interactions, uncertainty and explicit user limits; investigation depth is independent of delegation and coverage completion]
+- **Previous review / preserved record:** [Initial review, or prior record/version link retained before reassessment]
+- **Reassessment:** [Time, exact comparison, changed sources/criteria, newly discovered evidence and required investigation; or initial assessment]
 - **Evidence carried forward / reopened:** [Valid checkpoints retained with reason; affected claims, callers, scenarios and gaps reopened; fresh inventory and prior snapshot link if revisions changed]
 - **Investigation depth:** [standard / deep with actual behavioral evidence; very large interacting behavior and insufficient prior depth require deep; mechanical volume alone does not]
 
@@ -108,8 +108,8 @@ fallback limitations. A documentation-author handoff never creates another lead.
 | [Lead, documentation or reviewer assignment] | [Reused / lead-direct / delegated; applicable context or unresolved question] | [Exact model and effort, or not requested] | [Identity and invocation/tool evidence] | [Confirmed evidence or not exposed] | [Artifact, escalation or limitation] |
 
 <!-- Use the following reviewer-handoff table when delegating code review; omit
-that table for a sequential review. Retain the execution record above in either
-mode. The lead alone updates the canonical run.json. Reviewers write
+that table for a sequential review. Retain the execution record above in both
+cases. The lead alone updates the canonical run.json. Reviewers write
 distinct handoffs. -->
 
 | Unit / reviewer | Assigned snapshot and scope | Handoff and actual scope / gaps | Lead verification and disposition |
