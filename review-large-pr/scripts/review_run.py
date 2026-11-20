@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 from review_coverage import CoverageError, atomic_save, audit_evidence, evidence_list, validate_record
 from review_timing import MILESTONES, observation, timestamp, timing_summary, validate_observation
-from review_policy import load_policy, preferred_configuration, preferences
+from review_policy import load_policy, policy_for_record, preferred_configuration, preferences
 
 
 def now():
@@ -31,7 +31,7 @@ def read(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
-def route(request, policy=None):
+def route(request, policy=None, *, run=None):
     """A routing recommendation from supplied configuration, never discovery."""
     if not isinstance(request, dict):
         raise CoverageError('Routing input must be an object.')
@@ -39,12 +39,21 @@ def route(request, policy=None):
     role = request.get('role', 'unassigned')
     if role not in {'unassigned', 'lead', 'reviewer', 'documentation-author'}:
         raise CoverageError('Unknown assignment role.')
-    preferred_model, preferred_effort = preferred_configuration(request, policy)
+    policy_role = 'lead' if role == 'unassigned' else role.replace('-', '_')
+    existing = request.get('existing_lead')
+    if run is not None:
+        require_schema(run)
+        policy = policy_for_record(run)
+        saved_lead = run.get('lead') or {}
+        if existing is None:
+            existing = saved_lead.get('id')
+        if policy_role == 'lead' and request.get('user_override') is None:
+            request = dict(request, user_override=saved_lead.get('user_override'))
+    preferred_model, preferred_effort = preferred_configuration(request, policy, policy_role)
     configured = (request.get('model') == preferred_model
                   and request.get('effort') == preferred_effort
                   and isinstance(request.get('configuration_source'), str)
                   and bool(request['configuration_source'].strip()))
-    existing = request.get('existing_lead')
     if existing is not None:
         nonempty(existing, 'existing_lead')
     if role in {'reviewer', 'documentation-author'}:
@@ -123,9 +132,11 @@ def init(args):
         coverages.append({'path': str(path), 'snapshot': snap})
     if len({c['path'] for c in coverages}) != len(coverages):
         raise CoverageError('Duplicate coverage record.')
+    roots = {c['snapshot']['repo_root'] for c in coverages}
+    policy = load_policy(next(iter(roots)) if len(roots) == 1 else None, args.policy)
     data = {'schema_version': 1, 'created_at': now(), 'mode': args.mode,
             'selection_reason': nonempty(args.reason, 'selection reason'),
-            'coverage': coverages, 'installed_skill_snapshot': fingerprints(args.skill_root),
+            'coverage': coverages, 'installed_skill_snapshot': fingerprints(args.skill_root), 'model_policy': policy,
             'lead': None, 'depth': {'level': 'unassessed', 'reason': ''},
             'boundaries': [], 'investigations': [], 'truncations': [], 'events': [],
             'limitations': [], 'timing': {'milestones': []}}
@@ -271,7 +282,8 @@ def inspect_run(data, path, require_complete=False, at=None, require_diagnostics
         extra_pending, extra_warnings = inspect_checkpoint_fields(data, root)
         pending.extend(extra_pending)
         warnings.extend(extra_warnings)
-    preferences(data.get('model_policy'))
+    policy = policy_for_record(data)
+    preferences(policy)
     versions = data.get('installed_skill_snapshot')
     if not isinstance(versions, list) or not versions:
         raise CoverageError('Installed skill fingerprints are required.')
@@ -294,7 +306,7 @@ def inspect_run(data, path, require_complete=False, at=None, require_diagnostics
                 nonempty(lead[field], 'lead.' + field)
         if lead.get('selection', 'current') not in {'current', 'existing', 'delegated', 'unavailable'} or lead.get('evidence_kind', 'unknown') not in {'runtime_config', 'invocation', 'unknown'}:
             raise CoverageError('Invalid lead selection/configuration evidence kind.')
-        preferred = preferred_configuration(lead, data.get('model_policy'))
+        preferred = preferred_configuration(lead, policy)
         if lead.get('user_override'):
             warnings.append('Explicit user model override recorded; validate its authority against the user request.')
         if ((lead.get('model'), lead.get('effort')) != preferred
@@ -416,10 +428,11 @@ def inspect_run(data, path, require_complete=False, at=None, require_diagnostics
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
-    routing = sub.add_parser('route', help='Recommend lead reuse from supplied current-task configuration.')
+    routing = sub.add_parser('route', help='Resolve role preferences and lead ownership from supplied configuration.')
     routing.add_argument('--input', required=True)
     routing.add_argument('--repo', help='Project root containing optional .ai-skills.json.')
     routing.add_argument('--policy', help='Explicit project model policy file.')
+    routing.add_argument('--run', help='Use the preferences captured in an existing run.json.')
     installation = sub.add_parser('check-installation', help='Verify the supported sibling pair and local resources.')
     installation.add_argument('--skill-root', default=str(Path(__file__).resolve().parent.parent))
     create = sub.add_parser('init', help='Capture coverage identities and installed skill fingerprints.')
@@ -427,6 +440,7 @@ def main(argv=None):
     create.add_argument('--output', required=True)
     create.add_argument('--mode', choices=['light', 'full'], required=True)
     create.add_argument('--reason', required=True)
+    create.add_argument('--policy', help='Explicit project model policy file.')
     create.add_argument('--skill-root', default=str(Path(__file__).resolve().parent.parent))
     from review_checkpoint import add_commands, dispatch
     add_commands(sub)
@@ -460,7 +474,14 @@ def main(argv=None):
         elif args.command == 'check-installation':
             check_installation(args.skill_root)
         elif args.command == 'route':
-            print(json.dumps(route(read(args.input), load_policy(args.repo, args.policy)), indent=2))
+            request = read(args.input)
+            if args.run:
+                if args.repo or args.policy:
+                    raise CoverageError('Choose --run for saved preferences or --repo/--policy for a new assignment.')
+                result = route(request, run=read(args.run))
+            else:
+                result = route(request, load_policy(args.repo, args.policy))
+            print(json.dumps(result, indent=2))
         elif args.command == 'init':
             init(args)
         elif args.command == 'event':

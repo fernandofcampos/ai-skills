@@ -1,6 +1,6 @@
 # Complete review workflow
 
-Use this workflow for every invocation of `review-large-pr`, alongside the snapshot, requirements, validation, coverage and delivery rules in [SKILL.md](../SKILL.md). Keep the existing lead and verified evidence. Assess investigation depth from the change; delegation depends on independent work and capacity. Reuse sufficient architectural context.
+Use the sections relevant to a new review or an affected area on resumption. An assigned reviewer follows the bounded assignment and returns evidence to the lead. For an earlier verdict, begin with the [reassessment rules](review-completion.md#resume-after-changes-and-deliver-a-verdict).
 
 ## Prepare architectural context automatically
 

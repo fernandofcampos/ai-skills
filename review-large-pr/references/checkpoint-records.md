@@ -192,6 +192,11 @@ selection and artifact compatibility still require lead judgment.
 
 ## Legacy and manual fallback
 
+The manual template includes the skill defaults. If a project policy applies,
+preserve its parsed contents in `model_policy.preferences`, its path in `source`,
+and the SHA-256 of its original bytes in `sha256`. Early `begin` runs can capture
+the same preferences using `--repo` or `--policy`.
+
 Schema-1 helpers remain readable. To adopt atomic checkpoints, preserve them:
 
 ```bash

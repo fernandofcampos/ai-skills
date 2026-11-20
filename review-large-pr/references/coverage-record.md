@@ -80,11 +80,8 @@ legitimate groups remain valid, legacy records still pass, and distinct wording
 does not prove distinct investigation. Record the lead's warning disposition and
 inspect the mapping; do not rewrite prose merely to silence a warning.
 
-Keep the shared model policy's execution table in the review record. A coverage
-evidence object may link to it, but successful validation does not attest the
-requested or actual model, reasoning effort, delegation or semantic lead review.
-The helper does not start agents or change model configuration; existing records
-without execution metadata remain valid and are not retroactively certified.
+If execution diagnostics are requested, keep model observations in the review
+record. Coverage evidence identifies the inspected source, checks and conclusions.
 
 Manual editing is also supported: edit only per-file `units`, `status`, `evidence`, `notes`, plus `integration`. Leave snapshot and path/change metadata untouched. For several citations, use a list of evidence objects and/or legacy strings.
 

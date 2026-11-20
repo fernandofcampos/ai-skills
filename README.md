@@ -37,7 +37,11 @@ Use $review-large-pr to review https://github.com/OWNER/REPO/pull/123.
 Use $document-feature-design to document the feature in this repository.
 ```
 
-The [shared model policy](document-feature-design/references/model-policy.md) specifies lead and worker preferences, how to reuse an existing lead, and how to report unavailable settings. Reading a skill does not switch the current model. Review publication, source changes, and deployment remain subject to the authority in the user's request.
+The skills keep the current lead. When choosing a model for a new assignment,
+the package prefers GPT-6.2 Astra at medium effort for the lead and GPT-6.2 Sol
+at medium effort for a bounded reviewer or documentation author. Direct user
+choices and per-role project settings take precedence. The host controls the
+actual model. [Shared model policy](document-feature-design/references/model-policy.md)
 
 ## Review commands
 
@@ -60,17 +64,14 @@ Finish validates the review records, collects linked evidence and checks a porta
 archive. It preserves opaque JSON fixtures and does not scan unrelated scratch files.
 These commands do not fetch refs, run the review, install dependencies or publish it.
 
-The current lead is reused. Optional project model preferences live in
-`.ai-skills.json` at the repository root; start captures them once. Explicit user
-choices take precedence. Detailed model metadata and timing are optional:
-`check --require-complete` checks substantive records, while `--require-diagnostics`
-opts into timing/model checks. Missing evidence still prevents a complete review.
+`start` saves the skill defaults and any overrides from the repository's
+`.ai-skills.json`. To resolve a later assignment, use
+`route --run <run.json> --input <assignment.json>`. It returns the preferred model
+and effort for the specified role. Earlier schema-1 and schema-2 runs retain their
+historical defaults and recorded overrides. Update both installed skill folders together.
 
-Existing schema-1 and schema-2 records remain readable. Update both installed skill
-folders together before using the new commands. Automation that relied on timing
-or model checks under `--require-complete` should add `--require-diagnostics`.
-The routing helper now returns `preferred_model` / `preferred_effort` and reuses
-the current lead instead of recommending delegation solely for model compliance.
+`check --require-complete` checks substantive review evidence. Add
+`--require-diagnostics` for an audit of timing and model observations.
 
 ## Examples and evaluation
 
@@ -79,9 +80,13 @@ the current lead instead of recommending delegation solely for model compliance.
 - [Concise ADR](document-feature-design/examples/concise-adr.md)
 - [Workflow evaluation against built-in behavior](evaluations/README.md)
 
-The examples use explicitly fictional sources. The evaluation workflow supplies
-reproducible tasks and compares independently judged, retained agent outputs; its
-unit tests do not establish an advantage over built-in review or documentation.
+The examples are teaching fixtures. For a model or skill migration, prepare the
+separate caption-review and offline-design cases whose worked answers are absent
+from the installed skills.
+
+```sh
+python3 evaluations/workflow_eval.py prepare --held-out --output /path/to/new-evaluation
+```
 
 ## Validate the package
 

@@ -44,7 +44,7 @@ class CheckpointCases(unittest.TestCase):
             coverage=[dict(id='service', **{'import': 'coverage.json'})],
             assessment=dict(mode='light', selection_reason='Bounded limit change',
                 depth=dict(level='standard', reason='Actual consumer traced'),
-                lead=dict(id='lead', selection='current', model='gpt-6-astra', effort='xhigh',
+                lead=dict(id='lead', selection='current', model='gpt-6.2-astra', effort='medium',
                           configuration_source='test invocation', evidence_kind='invocation')),
             environments=[dict(id='source', status='source_only', purpose='Inspect limit consumer',
                                reason='Source trace resolves exact constant behavior', runtime=None, evidence=[])]))
@@ -200,6 +200,7 @@ class CheckpointCases(unittest.TestCase):
         self.request(self.completion(), complete=True)
         data = self.load()
         template = json.loads((Path(review_run.__file__).parent.parent / 'assets/run-record-template.json').read_text())
+        self.assertEqual(template['model_policy'], data['model_policy'])
         template.update(data)
         template.update(revision=0, checkpoints=[],
                         recording=dict(method='manual', reason='Helper unavailable during recorded pass; prior bytes preserved'))

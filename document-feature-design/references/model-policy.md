@@ -1,80 +1,36 @@
-# Shared model preferences and lead ownership
+# Model preferences and lead ownership
 
-Read this once when either skill starts. Explicit user choices and runtime
-restrictions take precedence. Preferences describe desired settings; reading a
-skill or configuration file never switches the current conversation's model.
+Both skills keep the current or designated lead. Preferences help choose a model when the host offers a choice. An existing lead continues with its available settings. The runtime controls which models and reasoning efforts can actually run.
 
-## Resolve preferences once per project
+## Defaults for new work
 
-The default preferences are `gpt-6-astra` / `xhigh` for the lead and
-`gpt-6.1-sol` / `high` for focused review or documentation authoring. For difficult
-architectural reconstruction, the lead may prefer `gpt-6-astra` / `high` for a
-bounded authoring assignment. These are preferences, not completion requirements.
+| Role | Preferred Codex model | Reasoning effort | Assignment |
+| --- | --- | --- | --- |
+| Lead | `gpt-6.2-astra` | `medium` | Resolve competing evidence, verify cross-component behavior and own the verdict or design decision record. |
+| Reviewer | `gpt-6.2-sol` | `medium` | Investigate one bounded contract or challenge an assumption against pinned sources. |
+| Documentation author | `gpt-6.2-sol` | `medium` | Draft or update an artifact from identified sources and return it for verification. |
 
-A project can set its defaults in `.ai-skills.json` at the repository root:
+These are package starting points. If a consequential question still has competing explanations after a focused trace, consider more effort or an available Astra assignment for that question. Missing requirements call for source evidence. [OpenAI model selection guidance](https://developers.openai.com/api/docs/guides/model-selection)
+
+## Choose settings once
+
+A direct user choice takes precedence over the project setting for that role, which takes precedence over the table. Use the destination project's `.ai-skills.json` or an explicitly supplied policy file. Set just the roles the project wants to override. For example, a project can request greater effort for its reviewers.
 
 ```json
 {
   "schema_version": 1,
   "models": {
-    "lead": {"model": "gpt-6.1-sol", "effort": "high"},
-    "reviewer": {"model": "gpt-6.1-sol", "effort": "high"},
-    "documentation_author": {"model": "gpt-6.1-sol", "effort": "high"}
+    "reviewer": {"model": "gpt-6.2-sol", "effort": "high"}
   }
 }
 ```
 
-Omitted roles retain skill defaults. The configuration contains data only: no
-commands, plugins or executable hooks. Model names and effort values must be
-nonempty strings; actual availability is determined by the runtime. An invalid
-file is an actionable error, not permission to silently ignore project choices.
+The other role keys are `lead` and `documentation_author`. Each entry requires nonempty `model` and `effort` strings. The routing input spells the author role `documentation-author`. The helper accepts other model names for projects with different runtime catalogs. Resolve an invalid policy explicitly.
 
-`review_run.py start` discovers the file at the resolved repository root, or uses
-an explicit `--policy <file>`, and saves its contents, source and hash in the run.
-Resume from that captured preference; do not silently relabel earlier work when
-project settings change. A new run captures the current file. For standalone
-documentation, read the same file once at the destination project's root. Resolve
-multi-repository ambiguity using the designated delivery project or an explicit
-policy. A direct user choice overrides both the project file and defaults; retain
-its source in the existing `user_override` field when recording model metadata.
+`review_run.py start` captures the skill defaults and the project settings, source and file hash. On resumption use that snapshot. `route --run <run.json> --input <request.json>` resolves a role using the saved settings. Older runs retain the defaults from their generation for any omitted roles. For standalone design work, read the project file once when present. For several repositories, use the designated delivery project or explicit policy.
 
-## Reuse the lead; delegate useful work
+## Assign and verify work
 
-Reuse the current or already designated lead even if its settings differ or are
-not exposed. Make at most one bounded check of current-task metadata when useful.
-Do not infer the model from writing style, account defaults or unrelated sessions.
-Do not create a coordinator and replacement lead solely to match a model name.
+Delegate bounded independent work when permitted and useful. Give each worker its role, lead, source snapshots, question, destination and expected evidence. Assigned workers return to the same lead. The lead integrates and verifies their work. If a preference is unavailable, use the available capable agent and disclose a material limitation once.
 
-The lead owns scope, source assessment, assignments, integration, semantic checks
-and the result. A review invoking documentation retains that lead. Assigned
-reviewers/authors stay within their packet and do not start another lead or delegate
-further. Retain partial work when handing off a difficult question.
-
-Delegate only when bounded independent work materially improves focus or elapsed
-time and the user/runtime permits it. Reuse sufficient documents; perform cheap
-corrections directly. Assign substantial writing from verified context to an
-available capable author. For unresolved consequential architecture, the lead
-resolves or delegates the specific question with existing evidence. A stronger
-model cannot manufacture missing requirements or approval.
-
-When requesting an override, specify both model and effort and supply the role,
-lead identity, exact sources, requirements, scope, destination and validation plan.
-Respect tool restrictions on fresh contexts and capacity. If the preferred setting
-is unavailable, continue with the capable current lead and disclose the limit once.
-Do not modify global settings, install profiles or retry unsupported calls merely
-for preference compliance. A material capability or evidence gap remains a review
-limitation regardless of model choice.
-
-## Keep accountability separate from diagnostics
-
-Record the lead identity and substantive worker handoffs. Detailed requested versus
-runtime-confirmed settings, timing and liveness observations are optional. When
-supplied, distinguish invocation evidence from actual runtime confirmation; unknown
-metadata stays unknown. Keep these details in the review/validation record, outside
-architectural decisions and discovery metadata.
-
-`check --require-complete` requires substantive record obligations. It does not
-require model telemetry or timing. `check --require-diagnostics` explicitly audits
-those optional observations and reports their failures separately. Neither flag
-attests reasoning quality or backend execution. Malformed supplied evidence remains
-an error; optional diagnostics are not permission to invent measurements.
+Keep model diagnostics in the review or validation record. Record an explicit user preference with its source in `user_override`. Distinguish requested settings from observed runtime configuration. `check --require-complete` audits review evidence. Add `--require-diagnostics` when model and timing observations are also required.
