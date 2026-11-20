@@ -24,6 +24,13 @@ CASES = {
     'concise-adr': {'defects': [],
         'checks': ['source_traceable', 'separates_status', 'alternatives_grounded', 'revisit_conditions']},
 }
+HOLDOUT_CASES = {
+    'caption-timebase': {'defects': ['public-caption-timebase'],
+        'checks': ['source_traceable', 'connected_path_checked', 'coverage_honest']},
+    'offline-index-adr': {'defects': [],
+        'checks': ['source_traceable', 'separates_status', 'alternatives_grounded',
+                   'revisit_conditions', 'destination_format']},
+}
 BASE_CACHE = '''class UserCache:
     def __init__(self):
         self.values = {}
@@ -54,17 +61,17 @@ def digest(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
-def git(repo, *args):
-    env = dict(os.environ, GIT_AUTHOR_NAME='Workflow fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
-        GIT_COMMITTER_NAME='Workflow fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid',
-        GIT_AUTHOR_DATE='2026-01-01T00:00:00Z', GIT_COMMITTER_DATE='2026-01-01T00:00:00Z')
+def git(repo, *args, author='Workflow fixture', timestamp='2026-01-01T00:00:00Z'):
+    env = dict(os.environ, GIT_AUTHOR_NAME=author, GIT_AUTHOR_EMAIL='fixture@example.invalid',
+        GIT_COMMITTER_NAME=author, GIT_COMMITTER_EMAIL='fixture@example.invalid',
+        GIT_AUTHOR_DATE=timestamp, GIT_COMMITTER_DATE=timestamp)
     return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false',
         '-C', str(repo), *args], env=env, stderr=subprocess.PIPE).decode().strip()
 
 
-def commit(repo, message):
+def commit(repo, message, **identity):
     git(repo, 'add', '-A')
-    git(repo, 'commit', '-qm', message)
+    git(repo, 'commit', '-qm', message, **identity)
     return git(repo, 'rev-parse', 'HEAD')
 
 
@@ -86,12 +93,61 @@ def relabel(repo):
         path.write_text(path.read_text().replace('"v1"', '"v2"'))
 
 
-def prepare(output):
+def holdout_packets(output):
+    fixtures = Path(__file__).resolve().parent / 'fixtures'
+    captions = fixtures / 'caption-timebase'
+    review = output / 'cases/caption-timebase'
+    project = review / 'project'
+    project.mkdir(parents=True)
+    git(project, 'init', '-q')
+    for name in ('requirements.md', 'public_api.py', 'timeline.py', 'test_public_api.py'):
+        shutil.copyfile(captions / 'base' / name, project / name)
+    identity = dict(author='Caption fixture', timestamp='2026-11-10T10:30:00Z')
+    base = commit(project, 'Record millisecond caption interface', **identity)
+    for name in ('timeline.py', 'waveform.py'):
+        shutil.copyfile(captions / 'head' / name, project / name)
+    head = commit(project, 'Share a microsecond index with waveform readers', **identity)
+    (review / 'prompt.txt').write_text(
+        f'Review the caption timeline change in project from {base} to {head}. The accepted '
+        'public contract is in requirements.md. Save the local review, with findings and '
+        'evidence, beside project. Use the available local Git history and source.\n')
+
+    design = output / 'cases/offline-index-adr'
+    design.mkdir(parents=True)
+    brief = design / 'brief.md'
+    shutil.copyfile(fixtures / 'field-guide-brief.md', brief)
+    (design / 'prompt.txt').write_text(
+        'Write a concise ADR for the Field Guide maintainers from brief.md. The publishing '
+        'system rejects YAML frontmatter. Save the local draft as adr.md beside the brief.\n')
+    return {'caption-timebase': {'base': base, 'head': head},
+            'offline-index-adr': {'proposal_sha256': digest(brief.read_bytes())}}
+
+
+def write_manifest(output, cases, snapshots):
+    corpus_id = digest(json.dumps({'cases': cases, 'snapshots': snapshots}, sort_keys=True).encode())
+    manifest = {'schema_version': 1, 'corpus_id': corpus_id, 'snapshots': snapshots, 'cases': cases}
+    (output / 'oracle.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    for arm in ('baseline', 'skill'):
+        labels = {'schema_version': 1, 'corpus_id': corpus_id, 'arm': arm,
+            'conditions': dict(model=None, effort=None, tools=None, budget=None),
+            'judge': '', 'cases': []}
+        for name, spec in cases.items():
+            labels['cases'].append({'id': name, 'output': f'outputs/{arm}/{name}.md', 'trace': None,
+                'matched_defects': [], 'unsupported_findings': None,
+                'checks': dict.fromkeys(spec['checks']), 'clarifications': None,
+                'repeated_work': None, 'setup_calls': None, 'elapsed_seconds': None, 'evidence_notes': ''})
+        (output / f'{arm}-labels.json').write_text(json.dumps(labels, indent=2) + '\n')
+    return manifest
+
+
+def prepare(output, held_out=False):
     output = Path(output).resolve()
     if output.exists():
         raise ValueError('Corpus output must be new; preserve existing runs and results.')
     output.mkdir(parents=True)
     try:
+        if held_out:
+            return write_manifest(output, HOLDOUT_CASES, holdout_packets(output))
         snapshots = {}
         project = output / 'cases/cross-boundary/project'
         base = fixture(project)
@@ -129,20 +185,7 @@ def prepare(output):
                 if name == 'follow-up':
                     prompt += ' Resume the prior review in prior-review.md, inspect the fix and reassess carried-forward evidence without repeating unaffected work.'
             (folder / 'prompt.txt').write_text(prompt + '\n')
-        corpus_id = digest(json.dumps({'cases': CASES, 'snapshots': snapshots}, sort_keys=True).encode())
-        manifest = {'schema_version': 1, 'corpus_id': corpus_id, 'snapshots': snapshots, 'cases': CASES}
-        (output / 'oracle.json').write_text(json.dumps(manifest, indent=2) + '\n')
-        for arm in ('baseline', 'skill'):
-            labels = {'schema_version': 1, 'corpus_id': corpus_id, 'arm': arm,
-                'conditions': dict(model=None, effort=None, tools=None, budget=None),
-                'judge': '', 'cases': []}
-            for name, spec in CASES.items():
-                labels['cases'].append({'id': name, 'output': f'outputs/{arm}/{name}.md', 'trace': None,
-                    'matched_defects': [], 'unsupported_findings': None,
-                    'checks': dict.fromkeys(spec['checks']), 'clarifications': None,
-                    'repeated_work': None, 'setup_calls': None, 'elapsed_seconds': None, 'evidence_notes': ''})
-            (output / f'{arm}-labels.json').write_text(json.dumps(labels, indent=2) + '\n')
-        return manifest
+        return write_manifest(output, CASES, snapshots)
     except Exception:
         shutil.rmtree(output)
         raise
@@ -217,8 +260,8 @@ def compare(oracle_path, baseline_path, skill_path):
     if baseline['conditions'] != skill['conditions']:
         raise ValueError('Conditions differ; use matched runs before attributing an outcome to the skill.')
     return {'corpus_id': oracle['corpus_id'], 'baseline': baseline, 'skill': skill,
-            'limits': 'Scores depend on independent human judgments and retained artifacts. '
-                      'Unknown observations remain null; synthetic tasks do not establish general superiority.'}
+            'limits': 'Scores reflect the independent evaluator judgments and retained artifacts for these cases. '
+                      'Unobserved metrics are null.'}
 
 
 def main(argv=None):
@@ -226,12 +269,16 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     build = sub.add_parser('prepare')
     build.add_argument('--output', required=True)
+    build.add_argument('--held-out', action='store_true', help='Use cases without worked answers in either skill.')
     report = sub.add_parser('compare')
     for key in ('oracle', 'baseline', 'skill'):
         report.add_argument('--' + key, required=True)
     args = parser.parse_args(argv)
     try:
-        result = prepare(args.output) if args.command == 'prepare' else compare(args.oracle, args.baseline, args.skill)
+        if args.command == 'prepare':
+            result = prepare(args.output, args.held_out)
+        else:
+            result = compare(args.oracle, args.baseline, args.skill)
         print(json.dumps(result, indent=2))
     except (ValueError, KeyError, TypeError, OSError, subprocess.CalledProcessError) as exc:
         print(f'ERROR: {exc}', file=sys.stderr)

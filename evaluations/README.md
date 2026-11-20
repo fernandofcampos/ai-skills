@@ -1,18 +1,27 @@
 # Evaluate workflow outcomes
 
-The helper suites test record mechanics. This workflow compares actual agent
-outputs with and without the skills, using the same inputs and conditions. It
-includes reproducible synthetic starter tasks; passing them does not establish
-performance on production PRs. Add retained real PR/design cases before making
-broader claims.
+Compare retained agent outputs on identical sources and task constraints. For a
+skill migration, use the previous installed pair as the baseline and the revised
+pair as the candidate. For a comparison with built-in behavior, leave both
+skills out of the baseline workspace.
 
 ```sh
-python evaluations/workflow_eval.py prepare --output /path/to/new-evaluation
+python3 evaluations/workflow_eval.py prepare --held-out --output /path/to/new-evaluation
 ```
 
-Preparation creates immutable Git comparisons, separate task packets, an evaluator
-oracle, and unfilled label files. It never invokes an agent, posts reviews or changes
-an existing checkout. Existing output is never overwritten.
+Preparation creates separate task packets, a scoring key and unfilled label
+files in a new directory. Give the agent only its case and the skill pair for its
+arm. Keep this evaluation directory, the scoring key and other outputs outside
+the agent's task workspace.
+
+| Held-out task | What to inspect |
+| --- | --- |
+| caption-timebase | Does the review trace the public call across the unit conversion, identify a reachable regression at a nonzero offset, and check the waveform caller? |
+| offline-index-adr | Does the draft distinguish the accepted offline requirement from the proposed SQLite design, preserve the brief's identity, and satisfy the publisher's frontmatter restriction? |
+
+Omit `--held-out` to regenerate the original teaching corpus. Several answers to
+those tasks ship in the skills' examples. Use them to calibrate the evaluator.
+Use the held-out packets or independent project cases to measure behavior.
 
 | Task | What it measures |
 | --- | --- |
@@ -24,13 +33,13 @@ an existing checkout. Existing output is never overwritten.
 ## Run the two arms
 
 Use separate fresh tasks/workspaces for baseline and skill. Give each only its
-case folder and `prompt.txt`; keep the oracle, label files, completed examples and
-the other arm's output outside its workspace. For baseline, use normal built-in
-review/documentation behavior without installing or invoking these skills. For
-the skill arm, install the sibling pair and explicitly invoke the applicable skill.
+case folder and `prompt.txt`. Install the applicable sibling pair for each skill
+arm and invoke the requested skill. Record the package revision for each arm.
 For follow-up, provide the same supplied prior review in both arms.
 
-Hold model, effort, tools and task budget constant and record them. Refresh each
+Hold model, effort, tools and task budget constant within each case and record them.
+To isolate prompt changes, compare both revisions on the same GPT-6.2 variant.
+Repeat the matched pair on each model when evaluating both Astra and Sol. Refresh each
 workspace from the same packet, preserve commits, randomize arm order, and repeat
 runs when evaluating nondeterministic behavior. Preserve raw output and host/tool
 traces, including interruptions. Do not give one arm oracle hints or extra time.
@@ -46,13 +55,13 @@ findings before treating them as unsupported or changing the frozen corpus.
 
 Each judgment needs specific output/trace locators and reasoning in `evidence_notes`.
 Use `true`, `false` or `null` for each quality check; unknown is never a pass.
-Count unsupported findings separately. A clean task's recall is undefined, not 100%.
+Count unsupported findings and unsupported ADR claims separately from matched defects. An attribution of decision authority needs a source assigning that role. A clean task's recall is undefined, not 100%.
 Do not reward a skill for inventing extra defects or generating more artifacts.
 
 | Observation | Meaning |
 | --- | --- |
 | source_traceable | Material conclusions cite inspectable sources at the recorded baseline. |
-| connected_path_checked | The review establishes the actual caller/cache interaction and control, not only an isolated suspicious line. |
+| connected_path_checked | The review traces the actual caller through the changed boundary and checks a control. |
 | coverage_honest | Claims of reviewed/generated/excluded paths match retained evidence. |
 | fixed_finding_closed | The follow-up verifies the fix and does not report the old defect as current. |
 | unaffected_evidence_reassessed | Reused conclusions have source/criteria applicability reasons. |
@@ -60,6 +69,7 @@ Do not reward a skill for inventing extra defects or generating more artifacts.
 | separates_status | The ADR keeps proposal, implementation and deployment status distinct. |
 | alternatives_grounded | Alternatives and rationale are supported or explicitly presented as current analysis. |
 | revisit_conditions | Concrete evidence-backed conditions explain when to reconsider the decision. |
+| destination_format | The saved ADR respects the destination's formatting restriction and remains structurally valid. |
 | clarifications | Requests for information already supplied or safely inferable; necessary clarification is not penalized. |
 | repeated_work | Completed unaffected investigations repeated without new evidence, failure or uncertainty. |
 | setup_calls | Tool calls devoted to environment/artifact setup; retain trace locators defining the counted calls. |

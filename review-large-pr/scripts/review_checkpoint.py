@@ -14,6 +14,7 @@ from pathlib import Path
 import tempfile
 
 from review_coverage import CoverageError, apply_batch, atomic_save
+from review_policy import load_policy
 from review_timing import observation, timestamp
 
 
@@ -88,6 +89,7 @@ def begin(args):
     data = dict(schema_version=2, created_at=now(), revision=0, checkpoints=[],
                 mode='unassessed', selection_reason='Awaiting bounded assessment',
                 coverage=[], installed_skill_snapshot=fingerprints(args.skill_root),
+                model_policy=load_policy(args.repo, args.policy),
                 lead=None, depth=dict(level='unassessed', reason=''), boundaries=[],
                 investigations=[], truncations=[], limitations=[], environments=[],
                 recording=dict(method='helper', reason='Canonical atomic checkpoints'),
@@ -405,6 +407,8 @@ def add_commands(sub):
     begin_parser.add_argument('--output', required=True)
     begin_parser.add_argument('--owner', required=True)
     begin_parser.add_argument('--role', choices=['coordinator', 'lead'], required=True)
+    begin_parser.add_argument('--repo', help='Project root containing optional .ai-skills.json.')
+    begin_parser.add_argument('--policy', help='Explicit project model policy file.')
     begin_parser.add_argument('--skill-root', default=str(Path(__file__).resolve().parent.parent))
     time = begin_parser.add_mutually_exclusive_group()
     time.add_argument('--intake-at')

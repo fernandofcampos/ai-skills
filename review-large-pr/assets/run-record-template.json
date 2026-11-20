@@ -39,6 +39,16 @@
     }
   ],
   "installed_skill_snapshot": [],
+  "model_policy": {
+    "source": "skill defaults",
+    "sha256": null,
+    "preferences": {"schema_version": 1, "models": {}},
+    "defaults": {
+      "lead": {"model": "gpt-6.2-astra", "effort": "medium"},
+      "reviewer": {"model": "gpt-6.2-sol", "effort": "medium"},
+      "documentation_author": {"model": "gpt-6.2-sol", "effort": "medium"}
+    }
+  },
   "lead": null,
   "depth": {"level": "unassessed", "reason": ""},
   "boundaries": [],

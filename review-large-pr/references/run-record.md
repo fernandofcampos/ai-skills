@@ -18,8 +18,8 @@ replace it with observed configuration, never copy it as execution evidence:
 {
   "agent": "/root",
   "role": "unassigned",
-  "model": "gpt-6-astra",
-  "effort": "xhigh",
+  "model": "gpt-6.2-astra",
+  "effort": "medium",
   "configuration_source": "current task runtime configuration",
   "can_delegate": true
 }
@@ -34,7 +34,9 @@ retain their assignment. Unknown or different settings are optional diagnostic
 limits, not a reason to create another lead. Use `--repo <project-root>` to load
 `.ai-skills.json`, or `--policy <file>` to choose explicitly. The result reports
 preferences and whether supplied evidence confirms them; it does not configure a
-model or attest backend execution.
+model or attest backend execution. On resumption use `--run <run.json>` to read
+the saved settings. The returned preference belongs to the input role. An
+unassigned agent uses the lead preference.
 
 An explicit user choice takes precedence over project preferences and defaults.
 Retain `user_override` with `authority: explicit_user`, `model`, `effort`, and
@@ -67,8 +69,10 @@ Assessment and investigation fields (submit through checkpoint):
   `delegated`, `unavailable`), `model`, `effort`, `configuration_source` and
   `evidence_kind` (`runtime_config`, `invocation`, `unknown`). Describe requested
   versus confirmed settings honestly. A minimal lead is `{ "id": "lead" }`.
-- `model_policy`: optional captured project preferences, source and hash. Start
-  saves these automatically; they are provenance, not runtime execution evidence.
+- `model_policy` records the skill defaults for all roles, project preferences,
+  source and file hash. Older records without captured defaults use the former
+  role defaults for any omissions. `start` captures the project file automatically.
+  For early `begin` records, pass `--repo` or `--policy` when applicable.
 - `depth`: `level` (`standard` or `deep`) and behavioral `reason`. Deep requires
   a primary investigation and challenge for each critical boundary; both depths
   require precise coverage and integration evidence.

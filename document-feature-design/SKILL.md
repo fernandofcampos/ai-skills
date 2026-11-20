@@ -1,70 +1,30 @@
 ---
 name: document-feature-design
-description: Create or update source-grounded feature designs, RFCs, and ADRs with an accessible overview and traceable architectural detail. Use for architecture and decision documentation, not routine PR summaries, release notes, runbooks, or API references.
+description: Write or maintain a source-grounded feature design, RFC, or architecture decision record (ADR). Use for a proposed decision, an implemented feature's architecture, or a material architecture gap discovered in review.
 ---
 
-# Document Feature Design
+# Document a feature design
 
-Explain the problem, decision, constraints, alternatives and consequences. Connect
-claims to evidence and state when the decision should be revisited. Scale the
-document to the decision: a short ADR can provide both an accessible explanation
-and enough technical detail in a few paragraphs.
+Deliver a document a new engineer can use to understand the decision and a maintainer can trace to its sources. Default to a local draft in the requested or established documentation location, falling back to `docs/design/`. A proposal without a repository uses the supplied specification and the workspace's deliverable location.
 
-## Establish scope and evidence
+## Establish what the sources support
 
-Reuse the current or designated lead under the [shared model policy](references/model-policy.md).
-Read project preferences once; do not spawn another lead to match a model name.
-Delegate substantial bounded authoring when useful and permitted; this skill requests
-that selective delegation. Assigned authors do not start another lead or delegate again.
-Keep the [complete sibling installation](references/paired-installation.md).
+- **Proposal.** Identify the dated or versioned brief and the decision still open. Label planned behavior and validation. Name an owner or approver only when a source assigns that authority. Leave it unknown when the brief identifies only the audience.
+- **Code-backed design.** Pin each source revision and trace a representative path plus material failure or recovery behavior. Retain a scoped patch or content snapshot for relevant uncommitted work. Distinguish what the code implements, what was accepted, and what is deployed.
+- **Update or review handoff.** Preserve accepted rationale, refresh facts and criteria at the new baseline, and link the authoritative decision. In a PR review, return a review-local draft to the existing lead unless tracked documentation changes were requested. [Handoff and freshness](references/review-handoff.md)
 
-Infer the feature, supplied sources, destination and requested delivery endpoint.
-Follow repository conventions and preserve unrelated edits. Default to a local
-draft in the established documentation location, otherwise `docs/design/` under
-the source repository. A repository-free proposal uses its supplied specification
-and the workspace's deliverable location; do not invent a repository.
+Keep the current lead. An assigned author returns the artifact, source identities and validation results to that lead. For standalone project work, read `.ai-skills.json` once if present. Apply role preferences and direct user overrides when choosing a worker. [Model preferences](references/model-policy.md)
 
-Read the [authoring guide](references/authoring-guide.md) for scope, source inspection
-and validation. Record exact source baselines and identifiable criteria snapshots;
-preserve a scoped snapshot for relevant uncommitted changes. Trace the material
-source paths, contracts and failure/recovery behavior. Mark missing evidence explicitly.
-Separate accepted decisions, observed implementation, deployment evidence and inference.
+## Write and verify the decision
 
-## Write the smallest complete document
+Keep the overview and canonical decision or ADR link in the primary document. Explain the deciding constraint, credible alternatives, consequences and a concrete reason to revisit. A short decision can fit in a few paragraphs. A substantial design also needs entry points, critical invariants and cross-component scenarios. Use the repository's format or adapt the [feature template](assets/design-document-template.md). A [concise ADR](examples/concise-adr.md) illustrates the smaller form.
 
-Use an existing repository format, the [feature template](assets/design-document-template.md),
-or the [filled concise ADR](examples/concise-adr.md). Remove unused sections and
-placeholders. Preserve status, context, decision, rationale, credible alternatives,
-consequences and material revisit conditions. Never invent approval or historical rationale.
-
-Keep the primary overview understandable on its own and the canonical decision or
-authoritative ADR link in the primary document. Put supporting technical detail in
-the same document or a linked companion. Avoid repeating definitions and rationale.
-For substantial designs, provide the review map, critical invariants and integration
-scenarios needed to inspect consequential behavior; a small ADR can express these in prose.
-
-Add [discovery metadata](references/discovery-metadata.md) to primary Markdown
-documents unless destination conventions prohibit frontmatter. Link the actual
-source inventory and applicable sections. Metadata provides navigation, not approval.
-Use the [handoff contract](references/review-handoff.md) when a review reuses the design.
-Refresh implementation descriptions without silently rewriting accepted decisions.
-
-## Validate meaning, then structure
-
-Check claims, status, decision criteria, alternatives, diagrams and source links
-against the recorded evidence. Distinguish planned validation from executed checks.
-Follow the authoring guide for isolated validator dependencies and repository checks:
+Keep one source inventory with baselines and verification time. Add the discovery marker to primary Markdown documents where the destination permits frontmatter. Check material claims and links against the sources, then run the validator with its declared dependencies. [Discovery metadata](references/discovery-metadata.md)
 
 ```bash
 python <skill-dir>/scripts/validate_design_document.py <document> --project-root <destination-root> --require-discovery-metadata
 ```
 
-Fix errors and assess warnings. Structural success cannot establish factual accuracy,
-approval, deployment or sound rationale. Keep actual validation evidence in an existing
-report or the [validation record](assets/design-validation-template.md); detailed model
-and timing diagnostics are optional. Requested settings are not runtime confirmation.
+If the destination prohibits frontmatter, omit the marker and its flag. Use section aliases for repository headings and destination-native checks for other formats. [Authoring and validation guide](references/authoring-guide.md#validate-and-deliver)
 
-Verify the artifact at the requested destination and complete the authorized delivery.
-Report its location, source baselines, meaningful checks and material gaps. Publication
-requires authority from the request and appropriate destination visibility; local
-authoring alone does not authorize posting, merging or deployment.
+Fix validation errors, assess warnings and verify the artifact at the authorized endpoint. Report its location, supporting sources, executed checks and remaining gaps.

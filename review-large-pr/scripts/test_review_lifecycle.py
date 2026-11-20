@@ -72,7 +72,7 @@ class LifecycleCases(unittest.TestCase):
         self.record = self.run_dir / 'run.json'
         self.complete()
         end = dict(id='end', expected_revision=self.load()['revision'], actor='lead', note='Review completed',
-            assessment=dict(lead=dict(id='lead', selection='current', model='gpt-6-astra', effort='xhigh',
+            assessment=dict(lead=dict(id='lead', selection='current', model='gpt-6.2-astra', effort='medium',
                                      configuration_source='Test invocation', evidence_kind='invocation')),
             events=[dict(phase='review', state='complete', note='Verified pass saved')],
             milestones=[dict(name='lead_complete')])
@@ -127,10 +127,46 @@ class LifecycleCases(unittest.TestCase):
         self.assertEqual(review_policy.preferred_configuration({}, saved), ('project-model', 'high'))
         explicit = self.root / 'explicit.json'
         explicit.write_text(json.dumps({'schema_version': 1, 'models': {}}))
-        self.assertEqual(review_policy.load_policy(self.repo, explicit)['source'], str(explicit))
+        self.assertEqual(review_policy.load_policy(self.repo, explicit)['source'], str(explicit.resolve()))
         self.assertEqual(review_policy.preferred_configuration(dict(user_override=dict(
             authority='explicit_user', model='user-model', effort='low', source='Direct request')), saved),
             ('user-model', 'low'))
+
+    def test_resumed_routes_use_saved_role_preferences_and_explicit_lead_choice(self):
+        policy_file = self.repo / '.ai-skills.json'
+        policy_file.write_text(json.dumps({'schema_version': 1, 'models': {
+            'documentation_author': {'model': 'project-author', 'effort': 'high'}}}))
+        target = self.root / 'configured'
+        self.cli('start', '--repo', str(self.repo), '--base', self.base, '--head', self.head,
+                 '--output', str(target), '--owner', 'original-lead')
+        record = target / 'run.json'
+        snapshot = json.loads(record.read_text())
+        # Simulate a later package upgrade and an unavailable project file.
+        policy_file.unlink()
+        with patch.dict(review_policy.DEFAULTS, reviewer={'model': 'future-reviewer', 'effort': 'low'}):
+            self.assertEqual(review_policy.preferences(snapshot['model_policy'])['reviewer'],
+                             {'model': 'gpt-6.2-sol', 'effort': 'medium'})
+        snapshot['lead']['user_override'] = dict(authority='explicit_user', model='chosen-lead',
+                                                 effort='low', source='Direct user request')
+        record.write_text(json.dumps(snapshot))
+        request_path = self.root / 'assignment.json'
+        def routed(role, **extra):
+            request_path.write_text(json.dumps(dict(agent='resumer', role=role, **extra)))
+            return json.loads(self.cli('route', '--input', str(request_path), '--run', str(record)).stdout)
+        for role, model in [('lead', 'chosen-lead'), ('reviewer', 'gpt-6.2-sol'),
+                            ('documentation-author', 'project-author')]:
+            result = routed(role)
+            self.assertEqual(result['lead'], 'original-lead')
+            self.assertEqual(result['preferred_model'], model)
+            self.assertFalse(result['preference_confirmed'])
+        self.assertEqual(routed('lead', user_override=None)['preferred_model'], 'chosen-lead')
+        result = routed('documentation-author', user_override=dict(authority='explicit_user',
+                        model='chosen-author', effort='low', source='Direct user request'))
+        self.assertEqual((result['preferred_model'], result['preferred_effort']), ('chosen-author', 'low'))
+        del snapshot['model_policy']['defaults']
+        record.write_text(json.dumps(snapshot))
+        self.assertEqual(routed('reviewer')['preferred_model'], 'gpt-6.1-sol')
+        self.assertEqual(routed('documentation-author')['preferred_model'], 'project-author')
 
     def test_invalid_or_stale_evidence_updates_leave_record_unchanged(self):
         self.complete()

@@ -60,6 +60,27 @@ assert get_profile(db, c, {'tenant': 'b'}, 7) == 'bob'
             evaluation.prepare(self.root)
         self.assertEqual((self.root / 'oracle.json').read_bytes(), before)
 
+    def test_held_out_packets_pin_the_actual_caption_regression_and_brief(self):
+        folder = self.root.parent / 'held-out'
+        manifest = evaluation.prepare(folder, held_out=True)
+        self.assertNotEqual(manifest['corpus_id'], self.oracle['corpus_id'])
+        self.assertEqual(set(manifest['cases']), {'caption-timebase', 'offline-index-adr'})
+        self.assertEqual(manifest['corpus_id'],
+                         evaluation.prepare(self.root.parent / 'repeat', held_out=True)['corpus_id'])
+        repo = folder / 'cases/caption-timebase/project'
+        revisions = manifest['snapshots']['caption-timebase']
+        query = """from public_api import label_at
+clip = [{'start_ms': 10, 'end_ms': 12, 'text': 'Title'}]
+print([label_at(clip, position) for position in (10, 12, 10000)])
+"""
+        for ref, expected in [('base', "['Title', None, None]"), ('head', "[None, None, 'Title']")]:
+            evaluation.git(repo, 'checkout', '-q', revisions[ref])
+            output = subprocess.check_output([sys.executable, '-B', '-c', query], cwd=repo, text=True)
+            self.assertEqual(output.strip(), expected)
+        brief = folder / 'cases/offline-index-adr/brief.md'
+        self.assertEqual(evaluation.digest(brief.read_bytes()),
+                         manifest['snapshots']['offline-index-adr']['proposal_sha256'])
+
     def test_unfilled_labels_are_not_a_successful_evaluation(self):
         with self.assertRaisesRegex(ValueError, 'Record model'):
             evaluation.compare(self.root / 'oracle.json', self.root / 'baseline-labels.json', self.root / 'skill-labels.json')

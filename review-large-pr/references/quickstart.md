@@ -12,9 +12,10 @@ python <skill-dir>/scripts/review_run.py start --repo <checkout> --base <target-
 ```
 
 The folder contains `run.json` with exact revisions and an unreviewed inventory,
-and `review-record.md` to fill. Project preferences are captured from
-`.ai-skills.json`; use `--policy <file>` to select a different file. The current
-lead is reused; no runtime model is inferred from those preferences.
+and `review-record.md` to fill. The run captures skill defaults and overrides
+from `.ai-skills.json`. Use `--policy <file>` to select a different file. For a
+later assignment in this run, `route --run <run.json> --input <request.json>`
+uses the same role settings. The current lead retains ownership.
 
 Refresh remote PR metadata separately. Working-tree changes are not included.
 For a changed source snapshot, start a new folder and explicitly reassess earlier

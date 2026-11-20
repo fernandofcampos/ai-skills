@@ -20,14 +20,24 @@ class RoutingCases(unittest.TestCase):
     def routing(self, **extra):
         return review_run.route(dict(agent='root', role='unassigned', can_delegate=True, **extra))['action']
 
-    def test_known_astra_xhigh_is_reused(self):
-        self.assertEqual(self.routing(model='gpt-6-astra', effort='xhigh',
-                                     configuration_source='current task config'), 'reuse_current')
+    def test_configured_lead_is_reused(self):
+        for role in ('unassigned', 'lead', 'reviewer', 'documentation-author'):
+            with self.subTest(role=role):
+                is_worker = role in ('reviewer', 'documentation-author')
+                model = 'gpt-6.2-sol' if is_worker else 'gpt-6.2-astra'
+                request = dict(agent='worker' if is_worker else 'root', role=role, existing_lead='root',
+                               model=model, effort='medium', configuration_source='current task config')
+                result = review_run.route(request)
+                self.assertEqual(result['action'], 'retain_assignment' if is_worker else 'reuse_current')
+                self.assertEqual(result['lead'], 'root')
+                self.assertEqual((result['preferred_model'], result['preferred_effort']), (model, 'medium'))
+                self.assertTrue(result['preference_confirmed'])
+                self.assertFalse(review_run.route(dict(request, effort='low'))['preference_confirmed'])
 
     def test_unknown_or_different_settings_reuse_current_lead(self):
-        for values in [dict(model='gpt-6-astra'), dict(model='gpt-6-astra', effort='xhigh'),
-                       dict(model='gpt-6-astra', effort='xhigh', configuration_source=42),
-                       dict(model='gpt-6-astra', effort='high', configuration_source='current config')]:
+        for values in [dict(model='gpt-6.2-astra'), dict(model='gpt-6.2-astra', effort='medium'),
+                       dict(model='gpt-6.2-astra', effort='medium', configuration_source=42),
+                       dict(model='gpt-6.2-astra', effort='high', configuration_source='current config')]:
             self.assertEqual(self.routing(**values), 'reuse_current')
 
     def test_existing_lead_and_assigned_workers_never_create_second_lead(self):
@@ -43,11 +53,11 @@ class RoutingCases(unittest.TestCase):
                          'reuse_current')
 
     def test_explicit_user_override_is_recorded_without_changing_default(self):
-        self.assertEqual(self.routing(model='gpt-6-astra', effort='high', configuration_source='runtime config',
-                         user_override=dict(authority='explicit_user', model='gpt-6-astra', effort='high',
+        self.assertEqual(self.routing(model='gpt-6.2-astra', effort='high', configuration_source='runtime config',
+                         user_override=dict(authority='explicit_user', model='gpt-6.2-astra', effort='high',
                                             source='User explicitly requested high for this review')), 'reuse_current')
         with self.assertRaises(CoverageError):
-            self.routing(user_override=dict(model='gpt-6.1-sol', effort='high'))
+            self.routing(user_override=dict(model='gpt-6.2-sol', effort='high'))
 
 
 class InstallationCases(unittest.TestCase):
@@ -145,7 +155,7 @@ class RunCases(unittest.TestCase):
 
     def finish(self, deep=False):
         data = self.load()
-        data['lead'] = dict(id='root', selection='current', model='gpt-6-astra', effort='xhigh',
+        data['lead'] = dict(id='root', selection='current', model='gpt-6.2-astra', effort='medium',
                             configuration_source='test current-task configuration', evidence_kind='runtime_config')
         data['depth'] = dict(level='deep' if deep else 'standard', reason='Inspected actual changed contract')
         if deep:
@@ -225,7 +235,7 @@ class RunCases(unittest.TestCase):
 
     def test_missing_or_wrong_lead_configuration_prevents_compliance_claim(self):
         data = self.finish()
-        for change in [dict(effort='high'), dict(model='gpt-6.1-sol'), dict(evidence_kind='unknown'), dict(selection='unavailable')]:
+        for change in [dict(effort='high'), dict(model='gpt-6.2-sol'), dict(evidence_kind='unknown'), dict(selection='unavailable')]:
             changed = json.loads(json.dumps(data)); changed['lead'].update(change)
             self.save(changed)
             result = self.check()
@@ -234,9 +244,19 @@ class RunCases(unittest.TestCase):
             self.assertIn('Recorded review/record obligations: resolved.', result.stdout)
             self.assertIn('Model observations (optional): limited:', result.stdout)
 
+    def test_historical_diagnostics_use_the_policy_of_the_original_run(self):
+        data = self.finish()
+        data['lead'].update(model='gpt-6-astra', effort='xhigh')
+        del data['model_policy']
+        self.save(data)
+        self.assertIn('Model observations (optional): supported', self.check().stdout)
+        data['model_policy'] = dict(source='skill defaults', sha256=None, preferences={'schema_version': 1})
+        self.save(data)
+        self.assertIn('Model observations (optional): supported', self.check().stdout)
+
     def test_explicit_user_choice_can_override_policy_but_not_configuration_evidence(self):
         data = self.finish()
-        data['lead'].update(effort='high', user_override=dict(authority='explicit_user', model='gpt-6-astra',
+        data['lead'].update(effort='high', user_override=dict(authority='explicit_user', model='gpt-6.2-astra',
                             effort='high', source='Direct user request for this review'))
         self.save(data)
         self.assertIn('Explicit user model override', self.check().stdout)
